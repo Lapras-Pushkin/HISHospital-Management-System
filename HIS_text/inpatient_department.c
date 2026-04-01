@@ -184,7 +184,7 @@ void viewAllBeds() {
 }
 
 // ---------------------------------------------------------
-// 2. 办理入院
+// 2. 办理入院 (支持全院跨科室协调床位)
 // ---------------------------------------------------------
 void admitPatient(const char* docId) {
     initBedsIfEmpty();
@@ -241,9 +241,79 @@ void admitPatient(const char* docId) {
     getResponsibleDept(pId, requiredDept);
     printf("\n>>> 锁定通知单：该患者由【%s】下发，正在为您筛选 %s 的专属空床...\n", requiredDept, requiredDept);
 
-    // 【新增核心升级】此时我们已经知道了目标科室 requiredDept，执行精确的科室级空床校验与扩容！
+    // 检查扩容机制
     checkAndAdjustBedTension(requiredDept);
 
+    // ================= 【核心升级：床位搜索与跨科室协调机制】 =================
+    int hasLocalEmpty = 0;
+    Bed* b = bedHead->next;
+    while (b) {
+        if (!b->isOccupied && strcmp(getRoomDepartment(b->bedId), requiredDept) == 0) { hasLocalEmpty = 1; break; }
+        b = b->next;
+    }
+
+    int isCrossDept = 0;
+    if (!hasLocalEmpty) {
+        printf("\n【警告】%s 专属床位已满（扩容后依然无空余床位）！\n", requiredDept);
+        printf(">>> 触发系统应急预案：请全院跨科室协调床位 <<<\n");
+        isCrossDept = 1;
+
+        int hasAnyEmpty = 0;
+        b = bedHead->next;
+        while (b) { if (!b->isOccupied) { hasAnyEmpty = 1; break; } b = b->next; }
+
+        if (!hasAnyEmpty) {
+            printf("【极其抱歉】全院所有科室床位均已爆满！无法收治，请等待出院或转院。\n");
+            return;
+        }
+
+        printf("\n【全院可用空闲病床列表 (跨科收治)】:\n");
+        b = bedHead->next;
+        while (b) {
+            if (!b->isOccupied) {
+                printf("[%s] 所属: %-6s | %s - %s (每日 %.2f)\n", b->bedId, getRoomDepartment(b->bedId), b->wardType, b->bedType, b->price);
+            }
+            b = b->next;
+        }
+    }
+    else {
+        printf("\n【%s】可用空闲病床列表:\n", requiredDept);
+        b = bedHead->next;
+        while (b) {
+            if (!b->isOccupied && strcmp(getRoomDepartment(b->bedId), requiredDept) == 0) {
+                printf("[%s] %s - %s (每日 %.2f)\n", b->bedId, b->wardType, b->bedType, b->price);
+            }
+            b = b->next;
+        }
+    }
+
+    // 第一步：先确定选哪个床位
+    char selectBed[20];
+    printf("\n请输入分配的床位号 (如 1-3) (输入0取消): "); safeGetString(selectBed, 20);
+    if (strcmp(selectBed, "0") == 0) return;
+
+    b = bedHead->next; Bed* finalBed = NULL;
+    while (b) {
+        if (strcmp(b->bedId, selectBed) == 0 && !b->isOccupied) {
+            // 如果不是跨科室模式，且选的床不是目标科室的，拦截
+            if (!isCrossDept && strcmp(getRoomDepartment(b->bedId), requiredDept) != 0) {
+                // 不允许选
+            }
+            else {
+                finalBed = b; break;
+            }
+        }
+        b = b->next;
+    }
+
+    if (!finalBed) {
+        if (!isCrossDept) printf("无效床位，或该床位不属于【%s】。\n", requiredDept);
+        else printf("无效床位，或该床位已被占用。\n");
+        return;
+    }
+
+    // 第二步：选好床位后，输入天数并收费
+    printf("\n床位 [%s] 锁定成功！\n", finalBed->bedId);
     printf("请输入拟住院天数: "); int days = safeGetPositiveInt();
 
     int baseDeposit = 200 * days;
@@ -257,15 +327,11 @@ void admitPatient(const char* docId) {
         targetPat->balance -= finalDeposit; isPaid = 1;
         printf("已成功从患者账户划扣押金，住院立即生效。\n");
 
-        // 【核心新增：同步押金收取至队友报表】
         Transaction* newTrans = (Transaction*)malloc(sizeof(Transaction));
         int maxId = 0; Transaction* curr = transactionList;
         while (curr) { if (curr->id > maxId) maxId = curr->id; curr = curr->next; }
-        newTrans->id = maxId + 1;
-        newTrans->type = 2; // 2 代表队友结构里的住院类
-        newTrans->amount = finalDeposit;
-        getCurrentTimeStr(newTrans->time, 30);
-        sprintf(newTrans->description, "住院押金收取(患者:%s)", targetPat->name);
+        newTrans->id = maxId + 1; newTrans->type = 2; newTrans->amount = finalDeposit;
+        getCurrentTimeStr(newTrans->time, 30); sprintf(newTrans->description, "住院押金收取(患者:%s)", targetPat->name);
         newTrans->next = NULL;
 
         if (!transactionList) transactionList = newTrans;
@@ -275,28 +341,7 @@ void admitPatient(const char* docId) {
         printf("【提示】患者余额不足！将生成待缴费住院押金账单，请提醒前往财务缴费。\n");
     }
 
-    printf("\n【%s】可用空闲病床列表:\n", requiredDept);
-    Bed* b = bedHead->next; int hasEmpty = 0;
-    while (b) {
-        if (!b->isOccupied && strcmp(getRoomDepartment(b->bedId), requiredDept) == 0) {
-            printf("[%s] %s - %s (每日 %.2f)\n", b->bedId, b->wardType, b->bedType, b->price);
-            hasEmpty = 1;
-        }
-        b = b->next;
-    }
-    if (!hasEmpty) { printf("%s 专属床位已满！请等待出院或调床。\n", requiredDept); if (isPaid) targetPat->balance += finalDeposit; return; }
-
-    char selectBed[20];
-    printf("请输入分配的床位号 (如 1-3): "); safeGetString(selectBed, 20);
-    b = bedHead->next; Bed* finalBed = NULL;
-    while (b) {
-        if (strcmp(b->bedId, selectBed) == 0 && !b->isOccupied && strcmp(getRoomDepartment(b->bedId), requiredDept) == 0) {
-            finalBed = b; break;
-        }
-        b = b->next;
-    }
-    if (!finalBed) { printf("无效床位，或该床位不属于【%s】。\n", requiredDept); if (isPaid) targetPat->balance += finalDeposit; return; }
-
+    // 第三步：最终登记信息
     finalBed->isOccupied = 1; strcpy(finalBed->patientId, pId);
     finalBed->isRoundsDone = 0;
     targetNotice->isPaid = 1;
@@ -313,8 +358,13 @@ void admitPatient(const char* docId) {
     getCurrentTimeStr(r5->createTime, 30);
     r5->next = recordHead->next; recordHead->next = r5;
 
-    if (isPaid) printf("【成功】已成功办理入院，分配至 %s 的 %s 床。\n", requiredDept, finalBed->bedId);
-    else printf("【待缴费】已预留 %s 床位，并生成账单。\n", finalBed->bedId);
+    if (isPaid) {
+        if (isCrossDept) printf("\n【成功】已跨科室协调，将患者分配至 [%s] 的 %s 床。\n", getRoomDepartment(finalBed->bedId), finalBed->bedId);
+        else printf("\n【成功】已成功办理入院，分配至 %s 的 %s 床。\n", requiredDept, finalBed->bedId);
+    }
+    else {
+        printf("\n【待缴费】已预留 %s 床位，并生成账单。\n", finalBed->bedId);
+    }
 }
 // ---------------------------------------------------------
 // 4. 日常查房与开医嘱
