@@ -273,173 +273,121 @@ void bookAppointment(const char* currentPatientId) {
 // ---------------------------------------------------------
 // 业务三：财务费用中心 (支持充值、一键缴费、逐个缴费)
 // ---------------------------------------------------------
+// ---------------------------------------------------------
+// 内部引擎：监听缴费，如果是出院尾款，则瞬间释放病床并合并出院单！
+// ---------------------------------------------------------
+void checkAndAutoDischarge(Record* rec, const char* currentPatientId) {
+    if (rec->type == 5 && strstr(rec->description, "出院清算_补缴欠费差额")) {
+        char bedId[20] = { 0 }; double bFee = 0, dFee = 0;
+        // 破译刚才医生埋在单据里的床位号和费用密码
+        if (sscanf(rec->description, "出院清算_补缴欠费差额_床位:%19[^_]_床费:%lf_药费:%lf", bedId, &bFee, &dFee) == 3) {
+
+            // 1. 瞬间拔管放床
+            extern Bed* bedHead;
+            Bed* b = bedHead->next;
+            while (b) { if (strcmp(b->bedId, bedId) == 0) { b->isOccupied = 0; strcpy(b->patientId, ""); break; } b = b->next; }
+
+            // 2. 把所有住院期间记账(状态4)的药正式买单(转为状态1)
+            Record* rr = recordHead->next;
+            while (rr) { if (rr->type == 3 && strcmp(rr->patientId, currentPatientId) == 0 && rr->isPaid == 4) rr->isPaid = 1; rr = rr->next; }
+
+            // 3. 找到最初的押金单，完美完结并写上总结算明细
+            rr = recordHead->next;
+            while (rr) {
+                if (rr->type == 5 && strcmp(rr->patientId, currentPatientId) == 0 && rr->isPaid == 1) {
+                    rr->isPaid = 2;
+                    char summary[200];
+                    sprintf(summary, " [出院结算:床费%.2f 药费%.2f 总消费%.2f]", bFee, dFee, bFee + dFee);
+                    strcat(rr->description, summary);
+                }
+                rr = rr->next;
+            }
+            // 4. 清理当前这条尾款单的显示名字，让他变干净
+            strcpy(rec->description, "出院清算尾款结清");
+            printf("\n【系统自动联动】检测到住院尾款结清！\n系统已自动为您释放了病床，并生成了详细的【出院结算明细】，请至档案库查阅！\n");
+        }
+    }
+}
+
+// ---------------------------------------------------------
+// 业务三：财务费用中心 (含一键缴费及自动出院引擎)
+// ---------------------------------------------------------
 void financeCenter(const char* currentPatientId) {
     while (1) {
-        system("cls");
-        Patient* p = findPatientById(currentPatientId);
-        if (!p) return;
-
+        system("cls"); Patient* p = findPatientById(currentPatientId); if (!p) return;
         printf("\n--- 财务中心 (当前余额: %.2f) ---\n", p->balance);
-        printf("1. 账户余额充值\n");
-        printf("2. 待缴费账单结算\n");
-        printf("0. 返回上级菜单\n");
-        printf("请选择操作: ");
-        int choice = safeGetInt();
+        printf("1. 账户余额充值\n2. 待缴费账单结算\n0. 返回上级菜单\n请选择操作: ");
+        int choice = safeGetInt(); if (choice == 0) return;
 
-        if (choice == 0) return;
-
-        // ================= 【1. 账户充值模块】 =================
         if (choice == 1) {
-            printf("\n请输入充值金额 (0取消): ");
-            double money = safeGetDouble();
+            printf("\n请输入充值金额 (0取消): "); double money = safeGetDouble();
             if (money > 0) {
                 p->balance += money;
-
-                // 生成 Type 7 充值财务流水 (不计入医院营业报表，只计入个人档案)
-                Record* r7 = (Record*)malloc(sizeof(Record));
-                extern void generateRecordID(char* buffer);
-                generateRecordID(r7->recordId);
-                r7->type = 7; strcpy(r7->patientId, currentPatientId); strcpy(r7->staffId, "SYS");
-                r7->cost = money; r7->isPaid = 1;
-                sprintf(r7->description, "终端自助充值入账");
-                getCurrentTimeStr(r7->createTime, 30);
-                r7->next = recordHead->next; recordHead->next = r7;
-
-                printf("【成功】充值 %.2f 元成功！当前账户余额: %.2f\n", money, p->balance);
-                system("pause");
+                Record* r7 = (Record*)malloc(sizeof(Record)); extern void generateRecordID(char* buffer);
+                generateRecordID(r7->recordId); r7->type = 7; strcpy(r7->patientId, currentPatientId); strcpy(r7->staffId, "SYS");
+                r7->cost = money; r7->isPaid = 1; sprintf(r7->description, "终端自助充值入账");
+                getCurrentTimeStr(r7->createTime, 30); r7->next = recordHead->next; recordHead->next = r7;
+                printf("【成功】充值 %.2f 元成功！当前账户余额: %.2f\n", money, p->balance); system("pause");
             }
         }
-        // ================= 【2. 账单结算模块】 =================
         else if (choice == 2) {
             while (1) {
-                system("cls");
-                printf("\n--- 待缴费账单明细 ---\n");
-                Record* rec = recordHead->next;
-                int hasUnpaid = 0;
-                double totalUnpaidCost = 0.0;
-
+                system("cls"); printf("\n--- 待缴费账单明细 ---\n");
+                Record* rec = recordHead->next; int hasUnpaid = 0; double totalUnpaidCost = 0.0;
                 while (rec) {
                     if (strcmp(rec->patientId, currentPatientId) == 0 && rec->isPaid == 0) {
                         char typeName[20];
-                        switch (rec->type) {
-                        case 1: strcpy(typeName, "挂号费"); break;
-                        case 2: strcpy(typeName, "诊疗费"); break;
-                        case 3: strcpy(typeName, "药费"); break;
-                        case 4: strcpy(typeName, "检查费"); break;
-                        case 5: strcpy(typeName, "住院押金"); break;
-                        }
-                        printf("单号: %s | [%s] %s | 金额: %.2f元\n", rec->recordId, typeName, rec->description, rec->cost);
-                        totalUnpaidCost += rec->cost;
-                        hasUnpaid = 1;
+                        switch (rec->type) { case 1:strcpy(typeName, "挂号费"); break; case 2:strcpy(typeName, "诊疗费"); break; case 3:strcpy(typeName, "药费"); break; case 4:strcpy(typeName, "检查费"); break; case 5:strcpy(typeName, "住院押金/补缴"); break; }
+                                                   printf("单号: %s | [%s] %s | 金额: %.2f元\n", rec->recordId, typeName, rec->description, rec->cost);
+                                                   totalUnpaidCost += rec->cost; hasUnpaid = 1;
                     }
                     rec = rec->next;
                 }
+                if (!hasUnpaid) { printf("目前无待缴费账单。\n"); system("pause"); break; }
 
-                if (!hasUnpaid) {
-                    printf("目前无待缴费账单。\n");
-                    system("pause");
-                    break;
-                }
+                printf("--------------------------------------------------\n待缴费总额: %.2f 元 | 当前账户余额: %.2f 元\n", totalUnpaidCost, p->balance);
+                printf("\n1. 一键缴费 (自动结算所有账单)\n2. 逐个缴费 (输入单号独立结算)\n0. 返回上一级\n请选择: ");
+                int payChoice = safeGetInt(); if (payChoice == 0) break;
 
-                printf("--------------------------------------------------\n");
-                printf("待缴费总额: %.2f 元 | 当前账户余额: %.2f 元\n", totalUnpaidCost, p->balance);
-                printf("\n1. 一键缴费 (自动结算所有账单)\n");
-                printf("2. 逐个缴费 (输入单号独立结算)\n");
-                printf("0. 返回上一级\n");
-                printf("请选择缴费方式: ");
-                int payChoice = safeGetInt();
-
-                if (payChoice == 0) break;
-
-                // --- 方式 A：一键缴费 ---
                 if (payChoice == 1) {
-                    if (p->balance < totalUnpaidCost) {
-                        printf("【失败】余额不足，请先返回充值！差额: %.2f 元\n", totalUnpaidCost - p->balance);
-                        system("pause");
-                    }
+                    if (p->balance < totalUnpaidCost) { printf("【失败】余额不足，请先返回充值！差额: %.2f 元\n", totalUnpaidCost - p->balance); system("pause"); }
                     else {
-                        // 遍历扣费并生成报表流水
                         rec = recordHead->next;
                         while (rec) {
                             if (strcmp(rec->patientId, currentPatientId) == 0 && rec->isPaid == 0) {
-                                p->balance -= rec->cost;
-                                rec->isPaid = 1;
-
-                                // 核心：同步至队友的 Transaction 报表
-                                Transaction* newTrans = (Transaction*)malloc(sizeof(Transaction));
-                                int maxId = 0;
-                                Transaction* curr = transactionList;
-                                while (curr) { if (curr->id > maxId) maxId = curr->id; curr = curr->next; }
+                                p->balance -= rec->cost; rec->isPaid = 1;
+                                Transaction* newTrans = (Transaction*)malloc(sizeof(Transaction)); int maxId = 0; Transaction* curr = transactionList; while (curr) { if (curr->id > maxId) maxId = curr->id; curr = curr->next; }
                                 newTrans->id = maxId + 1;
+                                if (rec->type == 3) newTrans->type = 3; else if (rec->type == 5) newTrans->type = 2; else newTrans->type = 1;
+                                newTrans->amount = rec->cost; getCurrentTimeStr(newTrans->time, 30); strcpy(newTrans->description, rec->description); newTrans->next = NULL;
+                                if (!transactionList) transactionList = newTrans; else { curr = transactionList; while (curr->next) curr = curr->next; curr->next = newTrans; }
 
-                                if (rec->type == 3) newTrans->type = 3;
-                                else if (rec->type == 5) newTrans->type = 2;
-                                else newTrans->type = 1;
-
-                                newTrans->amount = rec->cost;
-                                getCurrentTimeStr(newTrans->time, 30);
-                                strcpy(newTrans->description, rec->description);
-                                newTrans->next = NULL;
-
-                                if (!transactionList) transactionList = newTrans;
-                                else {
-                                    curr = transactionList;
-                                    while (curr->next) curr = curr->next;
-                                    curr->next = newTrans;
-                                }
+                                // 【核心调用】每次缴款都查一下，如果是住院欠费，立即触发自动放床引擎！
+                                checkAndAutoDischarge(rec, currentPatientId);
                             }
                             rec = rec->next;
                         }
-                        printf("【成功】一键缴费完成！共计支付 %.2f 元，当前余额: %.2f\n", totalUnpaidCost, p->balance);
-                        system("pause");
-                        break;
+                        printf("【成功】一键缴费完成！当前余额: %.2f\n", p->balance); system("pause"); break;
                     }
                 }
-                // --- 方式 B：逐个缴费 ---
                 else if (payChoice == 2) {
-                    printf("\n输入要缴费的单号 (输入0返回): ");
-                    char target[30];
-                    safeGetString(target, 30);
-                    if (strcmp(target, "0") == 0) continue;
-
+                    printf("\n输入要缴费的单号: "); char target[30]; safeGetString(target, 30); if (strcmp(target, "0") == 0) continue;
                     Record* tRec = NULL; rec = recordHead->next;
-                    while (rec) {
-                        if (strcmp(rec->recordId, target) == 0 && rec->isPaid == 0) { tRec = rec; break; }
-                        rec = rec->next;
-                    }
+                    while (rec) { if (strcmp(rec->recordId, target) == 0 && rec->isPaid == 0) { tRec = rec; break; } rec = rec->next; }
                     if (!tRec) { printf("单号错误或已结算。\n"); system("pause"); continue; }
 
-                    if (p->balance < tRec->cost) {
-                        printf("【失败】余额不足，请先返回充值！差额: %.2f 元\n", tRec->cost - p->balance);
-                        system("pause");
-                    }
+                    if (p->balance < tRec->cost) { printf("【失败】余额不足！差额: %.2f 元\n", tRec->cost - p->balance); system("pause"); }
                     else {
-                        p->balance -= tRec->cost;
-                        tRec->isPaid = 1;
-                        printf("【缴费成功】已扣款 %.2f 元。当前账户余额: %.2f\n", tRec->cost, p->balance);
-
-                        // 核心：同步至队友的 Transaction 报表
-                        Transaction* newTrans = (Transaction*)malloc(sizeof(Transaction));
-                        int maxId = 0;
-                        Transaction* curr = transactionList;
-                        while (curr) { if (curr->id > maxId) maxId = curr->id; curr = curr->next; }
+                        p->balance -= tRec->cost; tRec->isPaid = 1;
+                        Transaction* newTrans = (Transaction*)malloc(sizeof(Transaction)); int maxId = 0; Transaction* curr = transactionList; while (curr) { if (curr->id > maxId) maxId = curr->id; curr = curr->next; }
                         newTrans->id = maxId + 1;
+                        if (tRec->type == 3) newTrans->type = 3; else if (tRec->type == 5) newTrans->type = 2; else newTrans->type = 1;
+                        newTrans->amount = tRec->cost; getCurrentTimeStr(newTrans->time, 30); strcpy(newTrans->description, tRec->description); newTrans->next = NULL;
+                        if (!transactionList) transactionList = newTrans; else { curr = transactionList; while (curr->next) curr = curr->next; curr->next = newTrans; }
 
-                        if (tRec->type == 3) newTrans->type = 3;
-                        else if (tRec->type == 5) newTrans->type = 2;
-                        else newTrans->type = 1;
-
-                        newTrans->amount = tRec->cost;
-                        getCurrentTimeStr(newTrans->time, 30);
-                        strcpy(newTrans->description, tRec->description);
-                        newTrans->next = NULL;
-
-                        if (!transactionList) transactionList = newTrans;
-                        else {
-                            curr = transactionList;
-                            while (curr->next) curr = curr->next;
-                            curr->next = newTrans;
-                        }
+                        printf("【缴费成功】已扣款 %.2f 元。当前余额: %.2f\n", tRec->cost, p->balance);
+                        // 【核心调用】如果是住院欠费，立即触发自动放床引擎！
+                        checkAndAutoDischarge(tRec, currentPatientId);
                         system("pause");
                     }
                 }
@@ -447,44 +395,139 @@ void financeCenter(const char* currentPatientId) {
         }
     }
 }
-// 业务四：个人医疗档案库 (新增消费报表与明细查询)
+// ---------------------------------------------------------
+// // 业务四：个人医疗档案库 (新增消费报表与明细查询)
+// ---------------------------------------------------------
+// ---------------------------------------------------------
+// 个人医疗档案库 (修复重复计费、支持一键查询住院总账单明细)
 // ---------------------------------------------------------
 void medicalRecords(const char* currentPatientId) {
     while (1) {
         system("cls");
         printf("\n--- 个人医疗档案库 ---\n");
-        printf("1. ①挂号记录\n");
-        printf("2. ②看诊记录\n");
-        printf("3. ③开药记录 (含住院查房开药)\n");
-        printf("4. ④检查记录\n");
-        printf("5. ⑤住院记录\n");
-        printf("6. 消费报表与明细查询\n");
-        printf("0. 返回上级菜单\n请选择要查询的档案类型: ");
+        printf("1. ①挂号与分诊记录\n");
+        printf("2. ②临床看诊记录\n");
+        printf("3. ③电子处方记录\n");
+        printf("4. ④辅助检查记录\n");
+        printf("5. ⑤住院记录与出院总账单\n");
+        printf("6. 个人资金收支流水报表\n");
+        printf("0. 返回上级菜单\n");
+        printf("请选择查询大类: ");
         int c = safeGetInt();
         if (c == 0) return;
 
-        if (c >= 1 && c <= 5) {
+        if (c >= 1 && c <= 4) {
             printf("\n--- 查询结果 ---\n");
             Record* rec = recordHead->next;
             int printed = 0;
             while (rec) {
-                if (strcmp(rec->patientId, currentPatientId) == 0 && rec->type == c) {
-                    char statusStr[30];
-                    if (rec->isPaid == 0) strcpy(statusStr, "待缴费/待处理");
-                    else if (rec->isPaid == 1) strcpy(statusStr, "进行中/已缴费");
-                    else strcpy(statusStr, "已完结闭环");
-
-                    printf("流水号: %-12s | 详情: %-40s | 金额: %-6.2f | 状态: %s\n",
-                        rec->recordId, rec->description, rec->cost, statusStr);
+                // 不显示住院期间记账的药单(isPaid=4)，那些要在分类5里看
+                if (strcmp(rec->patientId, currentPatientId) == 0 && rec->type == c && rec->isPaid != 4 && !strstr(rec->description, "[住院记账]")) {
+                    printf("单号: %-12s | 时间: %s | 金额: %.2f | 详情: %s\n",
+                        rec->recordId, rec->createTime, rec->cost, rec->description);
                     printed = 1;
                 }
                 rec = rec->next;
             }
-            if (!printed) printf("暂无该分类的档案记录。\n");
+            if (!printed) printf("该分类下暂无记录。\n");
             system("pause");
         }
+        else if (c == 5) {
+            // ================= 【升级：住院记录下钻式查询】 =================
+            while (1) {
+                system("cls");
+                printf("\n========== ⑤ 住院记录与出院总账单 ==========\n");
+                Record* rec = recordHead->next;
+                int count = 0;
+                printf("%-15s %-10s %-20s %-20s\n", "流水单号", "发生金额", "当前状态", "时间");
+
+                while (rec) {
+                    if (strcmp(rec->patientId, currentPatientId) == 0 && rec->type == 5) {
+                        char statusStr[30];
+                        if (rec->isPaid == 0) strcpy(statusStr, "待缴尾款");
+                        else if (rec->isPaid == 1) strcpy(statusStr, "住院中(押金已交)");
+                        else strcpy(statusStr, "已出院结算");
+
+                        printf("%-15s %-10.2f %-20s %-20s\n", rec->recordId, rec->cost, statusStr, rec->createTime);
+                        count++;
+                    }
+                    rec = rec->next;
+                }
+                if (count == 0) { printf("暂无任何住院记录。\n"); system("pause"); break; }
+
+                printf("-------------------------------------------------------------------\n");
+                printf("请输入要查看明细的【流水单号】 (输入0返回): ");
+                char target[30]; safeGetString(target, 30);
+                if (strcmp(target, "0") == 0) break;
+
+                Record* tRec = NULL; rec = recordHead->next;
+                while (rec) {
+                    if (strcmp(rec->recordId, target) == 0 && rec->type == 5 && strcmp(rec->patientId, currentPatientId) == 0) {
+                        tRec = rec; break;
+                    }
+                    rec = rec->next;
+                }
+
+                if (!tRec) { printf("单号输入错误，未找到该住院记录！\n"); system("pause"); continue; }
+
+                system("cls");
+                printf("\n========== 住院详情单 (%s) ==========\n", tRec->recordId);
+                printf("【基础信息】\n");
+                printf("单据时间: %s\n", tRec->createTime);
+                printf("相关操作: %s\n", tRec->description);
+
+                if (tRec->isPaid == 2 && strstr(tRec->description, "出院结算")) {
+                    printf("\n【资金流转明细】\n");
+                    printf(" - 缴纳住院押金: %.2f 元\n", tRec->cost);
+
+                    // 尝试找寻关联的退款单(Type 8) 或 补缴单(Type 5 包含"出院清算尾款结清")
+                    Record* r_link = recordHead->next;
+                    while (r_link) {
+                        if (strcmp(r_link->patientId, currentPatientId) == 0) {
+                            if (r_link->type == 8 && strstr(r_link->description, "出院清算_押金结余退回")) {
+                                printf(" - 系统退回结余: %.2f 元 (流水号:%s)\n", r_link->cost, r_link->recordId);
+                            }
+                            else if (r_link->type == 5 && strstr(r_link->description, "出院清算尾款结清")) {
+                                printf(" - 补缴欠费差额: %.2f 元 (流水号:%s)\n", r_link->cost, r_link->recordId);
+                            }
+                        }
+                        r_link = r_link->next;
+                    }
+
+                    printf("\n【住院期间各项药品费用明细】\n");
+                    Record* r_drug = recordHead->next; int hasDrug = 0;
+                    while (r_drug) {
+                        if (strcmp(r_drug->patientId, currentPatientId) == 0 && r_drug->type == 3 && strstr(r_drug->description, "[住院记账]")) {
+                            printf(" -> %s | %s\n", r_drug->recordId, r_drug->description);
+                            hasDrug = 1;
+                        }
+                        r_drug = r_drug->next;
+                    }
+                    if (!hasDrug) printf(" -> (本次住院无药品消费)\n");
+                }
+                else if (tRec->isPaid == 1 && !strstr(tRec->description, "出院清算")) {
+                    printf("\n【当前状态】患者正在住院中...\n");
+                    printf(" - 已交押金: %.2f 元\n", tRec->cost);
+                    printf("\n【住院期间已记账药品 (未结算)】\n");
+                    Record* r_drug = recordHead->next; int hasDrug = 0;
+                    while (r_drug) {
+                        if (strcmp(r_drug->patientId, currentPatientId) == 0 && r_drug->type == 3 && r_drug->isPaid == 4 && strstr(r_drug->description, "[住院记账]")) {
+                            printf(" -> %s | %s\n", r_drug->recordId, r_drug->description);
+                            hasDrug = 1;
+                        }
+                        r_drug = r_drug->next;
+                    }
+                    if (!hasDrug) printf(" -> (暂无药品消费)\n");
+                }
+                else if (tRec->isPaid == 0) {
+                    printf("\n【当前状态】待缴出院尾款，请至[财务中心]结清后方可办理出院。\n");
+                }
+                printf("-------------------------------------------------------------------\n");
+                system("pause");
+            }
+        }
         else if (c == 6) {
-            // 【核心新增】财务闭环报表：汇总消费、充值、退款
+            // ================= 【升级：剔除住院药费的精确报表】 =================
             printf("\n========== 消费报表与明细查询 ==========\n");
             Record* rec = recordHead->next;
             double totalSpent = 0, totalRecharged = 0, totalRefunded = 0;
@@ -494,20 +537,26 @@ void medicalRecords(const char* currentPatientId) {
             while (rec) {
                 if (strcmp(rec->patientId, currentPatientId) == 0) {
                     char typeName[30];
-                    // 只有付过钱的(isPaid>0)且属于1-5类的才算实际支出
-                    if (rec->type >= 1 && rec->type <= 5 && rec->isPaid > 0) {
-                        totalSpent += rec->cost;
-                        strcpy(typeName, "支出 (-)");
-                        printf("%-20s %-10s %-10.2f %-40s\n", rec->createTime, typeName, rec->cost, rec->description);
-                        printed = 1;
+                    if (rec->type >= 1 && rec->type <= 5 && rec->isPaid > 0 && rec->isPaid != 4) {
+
+                        // 【核心拦截】：如果是打上了 [住院记账] 的药单，直接隐身，不计入总支出，不打印！
+                        if (rec->type == 3 && strstr(rec->description, "[住院记账]")) {
+                            // 略过，因为它已经包含在Type5(住院押金)的账本里了
+                        }
+                        else {
+                            totalSpent += rec->cost;
+                            strcpy(typeName, "支出 (-)");
+                            printf("%-20s %-10s %-10.2f %-40s\n", rec->createTime, typeName, rec->cost, rec->description);
+                            printed = 1;
+                        }
                     }
-                    else if (rec->type == 7) { // 充值
+                    else if (rec->type == 7) {
                         totalRecharged += rec->cost;
                         strcpy(typeName, "充值 (+)");
                         printf("%-20s %-10s %-10.2f %-40s\n", rec->createTime, typeName, rec->cost, rec->description);
                         printed = 1;
                     }
-                    else if (rec->type == 8) { // 退款
+                    else if (rec->type == 8) {
                         totalRefunded += rec->cost;
                         strcpy(typeName, "退款 (+)");
                         printf("%-20s %-10s %-10.2f %-40s\n", rec->createTime, typeName, rec->cost, rec->description);
@@ -521,19 +570,12 @@ void medicalRecords(const char* currentPatientId) {
             printf("【资金汇总】总计充值: +%.2f | 出院退回: +%.2f | 实际总支出: -%.2f\n", totalRecharged, totalRefunded, totalSpent);
             Patient* p = findPatientById(currentPatientId);
             if (p) printf(">>> 当前账户可用余额: %.2f <<<\n", p->balance);
-            system("pause");
-        }
-        else {
-            printf("无效选项，请重新选择。\n");
+            printf("\n【温馨提示】住院期间的床位费与各项药费明细已被打包归拢，请在 [5. ⑤住院记录] 中查阅！\n");
             system("pause");
         }
     }
 }
-
 // 患者端总路由菜单 (文案修改)
-// ---------------------------------------------------------
-// ---------------------------------------------------------
-// 新增功能：修改患者账号密码
 // ---------------------------------------------------------
 void changePatientPassword(const char* currentId) {
     Patient* p = findPatientById(currentId);
