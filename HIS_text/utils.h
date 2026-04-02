@@ -2,16 +2,19 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-void loadAllDataFromTxt();
-void saveAllDataToTxt();
-
-// 安全与防呆输入接口
+// 基础安全输入接口
 void safeGetString(char* buffer, int size);
 int safeGetInt();
 double safeGetDouble();
-int safeGetPositiveInt(); // 防呆: 必须输入正整数
-void safeGetGender(char* buffer, int size); // 防呆: 只能输入"男性"或"女性"
+int safeGetPositiveInt();
+void safeGetGender(char* buffer, int size);
 
-void getCurrentTimeStr(char* buffer, int size); // 获取无空格的时间戳
+// 时间与数据处理接口
+void getCurrentTimeStr(char* buffer, int size);
+void getCurrentTime(char* buffer, int size); // 兼容旧模块调用的包装函数
+
+// 全局数据流转接口
+void loadAllDataFromTxt();
+void saveAllDataToTxt();
 
 #endif
