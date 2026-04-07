@@ -5,34 +5,10 @@
 #include <time.h>
 #include "models.h"
 #include "utils.h"
-#include <conio.h>
-
-// 密码输入：显示 *
-void safeGetPassword(char pwd[], int maxLen) {
-    int i = 0;
-    char ch;
-    while (1) {
-        ch = _getch(); 
-        if (ch == '\r') break;   // 回车结束
-        // 退格键处理
-        if (ch == '\b') {
-            if (i > 0) {
-                i--;
-                printf("\b \b");
-            }
-            continue;
-        }
-        if (i < maxLen - 1) {
-            pwd[i++] = ch;
-            printf("*");        // 只输出 *
-        }
-    }
-    pwd[i] = '\0';
-    printf("\n");
-}
-
 
 void safeGetString(char* buffer, int size) {
+    int i;
+
     if (fgets(buffer, size, stdin) != NULL) {
         if (strchr(buffer, '\n') == NULL) {
             int c;
@@ -40,6 +16,12 @@ void safeGetString(char* buffer, int size) {
         }
         else {
             buffer[strcspn(buffer, "\n")] = '\0';
+        }
+
+        for (i = 0; buffer[i] != '\0'; i++) {
+            if (buffer[i] == ' ') {
+                buffer[i] = '_';
+            }
         }
     }
     else {
@@ -90,7 +72,7 @@ int safeGetPositiveInt() {
     while (1) {
         val = safeGetInt();
         if (val > 0) return val;
-        if (val == 0) return 0; // 支持输入0返回
+        if (val == 0) return 0;
         printf("  [!] 数值不能为负数，请重新输入有效正整数 (输入0返回): ");
     }
 }
@@ -98,7 +80,7 @@ int safeGetPositiveInt() {
 void safeGetGender(char* buffer, int size) {
     while (1) {
         safeGetString(buffer, size);
-        if (strcmp(buffer, "0") == 0) return; // 支持输入0返回
+        if (strcmp(buffer, "0") == 0) return;
         if (strcmp(buffer, "男性") == 0 || strcmp(buffer, "女性") == 0) {
             return;
         }
@@ -106,6 +88,29 @@ void safeGetGender(char* buffer, int size) {
         if (strcmp(buffer, "女") == 0) { strcpy(buffer, "女性"); return; }
         if (strlen(buffer) == 0) continue;
         printf("  [!] 性别信息只能填入【男】或【女】，请重新输入 (输入0取消): ");
+    }
+}
+
+/* 新增：严格的密码规则约束器 */
+void safeGetPassword(char* buffer, int size) {
+    int i, valid;
+    while (1) {
+        safeGetString(buffer, size);
+        if (strcmp(buffer, "0") == 0) return;
+        if (strlen(buffer) == 0) continue;
+
+        valid = 1;
+        for (i = 0; buffer[i] != '\0'; i++) {
+            if (!((buffer[i] >= '0' && buffer[i] <= '9') ||
+                (buffer[i] >= 'a' && buffer[i] <= 'z') ||
+                (buffer[i] >= 'A' && buffer[i] <= 'Z'))) {
+                valid = 0;
+                break;
+            }
+        }
+
+        if (valid) return;
+        printf("  [!] 非法输入：密码只能由【数字】和【字母】组合，不能包含特殊字符，请重输 (输入0取消): ");
     }
 }
 

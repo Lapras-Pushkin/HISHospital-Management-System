@@ -11,12 +11,15 @@
 #include "drug.h"
 
 extern void generateRecordID(char* buffer);
+extern char currentCallingPatientId[20];
+extern void prescribeMedicine(const char* docId);
 
 void getResponsibleDept(const char* patientId, char* deptBuffer) {
     Record* r;
-    char staffId[20] = "";
+    char staffId[20];
     Staff* s;
 
+    strcpy(staffId, "");
     strcpy(deptBuffer, "未知科室");
     r = recordHead->next;
 
@@ -81,10 +84,11 @@ const char* getRoomDepartment(const char* bedId) {
 
 void checkAndAdjustBedTension(const char* targetDept) {
     int total = 0, empty = 0;
-    Bed* b = bedHead->next;
+    Bed* b;
     int converted = 0;
     Bed* extra;
 
+    b = bedHead->next;
     while (b) {
         if (strcmp(getRoomDepartment(b->bedId), targetDept) == 0) {
             total++;
@@ -124,13 +128,15 @@ void checkAndAdjustBedTension(const char* targetDept) {
 }
 
 void getDynamicDeptPrompt(char* promptBuffer) {
-    char depts[20][50]; int dCount = 0;
-    Staff* stf = staffHead->next;
+    char depts[20][50];
+    int dCount = 0;
+    Staff* stf;
     int exists, i;
 
+    stf = staffHead->next;
     while (stf) {
         exists = 0;
-        for (i = 0; i < dCount; i++) if (strcmp(depts[i], stf->department) == 0) { exists = 1; break; }
+        for (i = 0; i < dCount; i++) { if (strcmp(depts[i], stf->department) == 0) { exists = 1; break; } }
         if (!exists && strlen(stf->department) > 0) { strcpy(depts[dCount], stf->department); dCount++; }
         stf = stf->next;
     }
@@ -143,18 +149,20 @@ void getDynamicDeptPrompt(char* promptBuffer) {
 }
 
 void viewAllBeds() {
-    initBedsIfEmpty();
-    while (1) {
-        char deptStr[200];
-        char targetDept[50];
-        Bed* b;
-        int bedCount = 0;
-        char patName[100];
-        char docName[50];
-        Patient* p;
-        Record* r;
-        Staff* s;
+    char deptStr[200];
+    char targetDept[50];
+    Bed* b;
+    int bedCount;
+    char patName[100];
+    char docName[50];
+    Patient* p;
+    Record* r;
+    Staff* s;
 
+    initBedsIfEmpty();
+
+    while (1) {
+        bedCount = 0;
         system("cls");
         printf("\n========================================================================================\n");
         printf("                           全院病房与床位实时使用雷达图谱                               \n");
@@ -206,22 +214,22 @@ void viewAllBeds() {
 
 void admitPatient(const char* docId) {
     Record* r;
-    int noticeCount = 0;
+    int noticeCount;
     char pId[20];
-    Record* targetNotice = NULL;
+    Record* targetNotice;
     Patient* p;
-    Patient* targetPat = NULL;
+    Patient* targetPat;
     char requiredDept[50];
-    int hasLocalEmpty = 0;
+    int hasLocalEmpty;
     Bed* b;
-    int isCrossDept = 0;
-    int hasAnyEmpty = 0;
+    int isCrossDept;
+    int hasAnyEmpty;
     char selectBed[20];
-    Bed* finalBed = NULL;
+    Bed* finalBed;
     int days;
     int baseDeposit;
     int finalDeposit;
-    int isPaid = 0;
+    int isPaid;
     Record* r5;
     char adminTime[30];
     Patient* pt;
@@ -229,8 +237,18 @@ void admitPatient(const char* docId) {
     char deptName[50];
     int alreadyIn;
     Transaction* newTrans;
-    int maxId = 0;
+    int maxId;
     Transaction* curr;
+
+    noticeCount = 0;
+    targetNotice = NULL;
+    targetPat = NULL;
+    hasLocalEmpty = 0;
+    isCrossDept = 0;
+    hasAnyEmpty = 0;
+    finalBed = NULL;
+    isPaid = 0;
+    maxId = 0;
 
     initBedsIfEmpty();
 
@@ -427,27 +445,31 @@ void dailyDeductionSimulation() {
 }
 
 void wardRounds(const char* docId) {
+    char deptStr[200];
+    char targetDept[50];
+    Bed* b;
+    int pCount;
+    char pId[20];
+    Bed* targetBed;
+    Patient* p;
+    char pName[100];
+    char severity[10];
+    Record* r;
+    int choice;
+    char note[200];
+    Record* rx;
+    Record* cur;
+    char tempDesc[300];
+
     while (1) {
-        char deptStr[200];
-        char targetDept[50];
-        Bed* b;
-        int pCount = 0;
-        char pId[20];
-        Bed* targetBed = NULL;
-        Patient* p;
-        char pName[100];
-        char severity[10];
-        Record* r;
-        int choice;
-        char note[200];
-        Record* rx;
-        Record* cur;
+        pCount = 0;
+        targetBed = NULL;
 
         system("cls");
         printf("\n========== 住院病区日常巡检与查房 ==========\n");
 
         getDynamicDeptPrompt(deptStr);
-        printf("调取目标科室域 (%s, 0返回): ", deptStr);
+        printf("调取目标科室域 (%s, 输入0返回): ", deptStr);
         safeGetString(targetDept, 50);
         if (strcmp(targetDept, "0") == 0) return;
 
@@ -458,7 +480,8 @@ void wardRounds(const char* docId) {
         b = bedHead->next;
         while (b) {
             if (b->isOccupied && strcmp(getRoomDepartment(b->bedId), targetDept) == 0) {
-                p = patientHead->next; strcpy(pName, "未知");
+                p = patientHead->next;
+                strcpy(pName, "未知");
                 strcpy(severity, "普通");
 
                 while (p) { if (strcmp(p->id, b->patientId) == 0) { strcpy(pName, p->name); break; } p = p->next; }
@@ -480,7 +503,7 @@ void wardRounds(const char* docId) {
 
         if (pCount == 0) { printf("  (目标病区当前无处于活跃周期的在院人员)\n"); system("pause"); continue; }
 
-        printf("\n检索需建立查房会话的患者ID (0退回科室层级): "); safeGetString(pId, 20);
+        printf("\n检索需建立查房会话的患者ID (输入0退回科室层级): "); safeGetString(pId, 20);
         if (strcmp(pId, "0") == 0) continue;
 
         b = bedHead->next;
@@ -501,8 +524,10 @@ void wardRounds(const char* docId) {
             if (choice == 0) break;
 
             if (choice == 1) {
-                printf("输入实时医嘱指令内容(避免非法空格切断字符): ");
+                printf("输入实时医嘱指令内容(避免非法空格切断字符, 输入0取消): ");
                 safeGetString(note, 200);
+                if (strcmp(note, "0") == 0) continue;
+
                 rx = (Record*)malloc(sizeof(Record));
 
                 generateRecordID(rx->recordId);
@@ -516,16 +541,13 @@ void wardRounds(const char* docId) {
                 system("pause");
             }
             else if (choice == 2) {
-                extern char currentCallingPatientId[20];
                 strcpy(currentCallingPatientId, pId);
 
-                extern void prescribeMedicine(const char* docId);
                 prescribeMedicine(docId);
 
                 cur = recordHead->next;
                 while (cur) {
                     if (cur->type == 3 && strcmp(cur->patientId, pId) == 0 && cur->isPaid == 0) {
-                        char tempDesc[300];
                         cur->isPaid = 4;
                         sprintf(tempDesc, "[住院记账]%s", cur->description);
                         strcpy(cur->description, tempDesc);
@@ -537,50 +559,57 @@ void wardRounds(const char* docId) {
                 targetBed->isRoundsDone = 1;
                 system("pause");
             }
+            else {
+                printf("  [!] 无效的菜单选项，请正确输入提供的数字编号！\n");
+                system("pause");
+            }
         }
     }
 }
 
 void dischargePatient() {
+    char deptStr[200];
+    char targetDept[50];
+    Bed* b_list;
+    int count;
+    char pId[20];
+    Bed* b;
+    Bed* targetBed;
+    Record* r_check;
+    time_t t;
+    struct tm* tm_info;
+    int currentHour;
+    int actualDays;
+    int billableDays;
+    double totalBedFee;
+    double totalDrugFee;
+    Record* r;
+    double totalHospitalCost;
+    double total_deposit;
+    Patient* pt;
+    double refund;
+    Record* r8;
+    Transaction* newTrans;
+    int maxId;
+    Transaction* curr;
+    char summary[200];
+    double arrears;
+    Record* r_arrears;
+    Patient* p;
+    char pName[100];
+
     while (1) {
-        char deptStr[200];
-        char targetDept[50];
-        Bed* b_list;
-        int count = 0;
-        char pId[20];
-        Bed* b;
-        Bed* targetBed = NULL;
-        Record* r_check;
-        time_t t;
-        struct tm* tm_info;
-        int currentHour;
-        int actualDays;
-        int billableDays;
-        double totalBedFee;
-        double totalDrugFee = 0;
-        Record* r;
-        double totalHospitalCost;
-        double total_deposit = 0;
-        Patient* p;
-        char pName[100];
-        double refund;
-        Patient* pt;
-        Record* r8;
-        Transaction* newTrans;
-        int maxId = 0;
-        Transaction* curr;
-        char summary[200];
-        double arrears;
-        Record* r_arrears;
-        Record* r_link;
-        Record* r_drug;
-        int hasDrug;
+        count = 0;
+        targetBed = NULL;
+        totalDrugFee = 0.0;
+        total_deposit = 0.0;
+        maxId = 0;
 
         system("cls");
         printf("\n========== 离院综合清算办理控制台 ==========\n");
 
         getDynamicDeptPrompt(deptStr);
-        printf("锁定业务作用域科室 (%s, 0放弃办理): ", deptStr);
+        printf("锁定业务作用域科室 (%s, 输入0放弃办理): ", deptStr);
         safeGetString(targetDept, 50);
         if (strcmp(targetDept, "0") == 0) return;
 
@@ -591,7 +620,8 @@ void dischargePatient() {
         b_list = bedHead->next;
         while (b_list) {
             if (b_list->isOccupied && strcmp(getRoomDepartment(b_list->bedId), targetDept) == 0) {
-                p = patientHead->next; strcpy(pName, "未知");
+                p = patientHead->next;
+                strcpy(pName, "未知");
                 while (p) { if (strcmp(p->id, b_list->patientId) == 0) { strcpy(pName, p->name); break; } p = p->next; }
                 printf("%-10s %-12s %-15s %-10s\n", b_list->bedId, b_list->wardType, b_list->patientId, pName);
                 count++;
@@ -600,7 +630,7 @@ void dischargePatient() {
         }
         if (count == 0) { printf("  (当前无可流转的出院对象)\n"); system("pause"); continue; }
 
-        printf("\n确立清算实体的患者ID (0终止当前操作): "); safeGetString(pId, 20);
+        printf("\n确立清算实体的患者ID (输入0终止当前操作): "); safeGetString(pId, 20);
         if (strcmp(pId, "0") == 0) continue;
 
         b = bedHead->next;
@@ -621,8 +651,9 @@ void dischargePatient() {
         t = time(NULL);
         tm_info = localtime(&t);
         currentHour = tm_info->tm_hour;
-        printf("\n键入供财务审核的最终驻留计费天数: ");
+        printf("\n键入供财务审核的最终驻留计费天数 (输入0取消): ");
         actualDays = safeGetPositiveInt();
+        if (actualDays == 0) continue;
 
         billableDays = actualDays;
         if (currentHour >= 0 && currentHour < 8) {
@@ -695,8 +726,8 @@ void dischargePatient() {
 }
 
 void inpatientMenu(const char* docId) {
+    int choice;
     while (1) {
-        int choice;
         system("cls");
         printf("\n==================================================\n");
         printf("                 住院管理调度中心                 \n");
@@ -718,6 +749,10 @@ void inpatientMenu(const char* docId) {
         case 4: wardRounds(docId); break;
         case 5: dischargePatient(); break;
         case 0: return;
+        default:
+            printf("  [!] 无效的菜单选项，请正确输入提供的数字编号！\n");
+            system("pause");
+            break;
         }
     }
 }

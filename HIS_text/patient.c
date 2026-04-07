@@ -32,9 +32,9 @@ void generatePatientID(char* idBuffer) {
 
 Patient* findPatientById(const char* pid) {
     Patient* p = patientHead->next;
-    while (p != NULL) { 
-        if (strcmp(p->id, pid) == 0) return p; 
-        p = p->next; 
+    while (p != NULL) {
+        if (strcmp(p->id, pid) == 0) return p;
+        p = p->next;
     }
     return NULL;
 }
@@ -58,47 +58,50 @@ void registerPatient() {
     }
     newPatient->isEmergency = (type == 2) ? 1 : 0;
 
-    while (1) { 
-        printf("请输入真实姓名 (输入0取消): "); 
-        safeGetString(newPatient->name, 100); 
-        if (strcmp(newPatient->name, "0") == 0) { free(newPatient); return; } 
-        if (strlen(newPatient->name) > 0) break; 
+    while (1) {
+        printf("请输入真实姓名 (输入0取消): ");
+        safeGetString(newPatient->name, 100);
+        if (strcmp(newPatient->name, "0") == 0) { free(newPatient); return; }
+        if (strlen(newPatient->name) > 0) break;
     }
-    
-    while (1) { 
-        printf("请设置登录密码 (输入0取消): "); 
-        safeGetString(newPatient->password, 50); 
-        if (strcmp(newPatient->password, "0") == 0) { free(newPatient); return; }
-        if (strlen(newPatient->password) > 0) break; 
-    }
+
+    /* 拦截并验证密码合法性 */
+    printf("请设置登录密码 (仅限数字或字母组合, 输入0取消): ");
+    safeGetPassword(newPatient->password, 50);
+    if (strcmp(newPatient->password, "0") == 0) { free(newPatient); return; }
 
     printf("请输入生理性别 (男/女, 输入0取消): ");
     safeGetGender(newPatient->gender, 10);
-    if(strcmp(newPatient->gender, "0") == 0){ free(newPatient); return; }
+    if (strcmp(newPatient->gender, "0") == 0) { free(newPatient); return; }
 
     if (!newPatient->isEmergency) {
-        printf("请输入周岁年龄 (输入0取消): ");
-        newPatient->age = safeGetPositiveInt();
-        if(newPatient->age == 0) { free(newPatient); return; }
-        
+        /* 严控年龄约束 */
+        printf("请输入周岁年龄 (1-200, 输入0取消): ");
+        while (1) {
+            newPatient->age = safeGetInt();
+            if (newPatient->age == 0) { free(newPatient); return; }
+            if (newPatient->age >= 1 && newPatient->age <= 200) break;
+            printf("  [!] 输入异常：年龄必须在 1~200 之间，请重新输入正确的年龄 (输入0取消): ");
+        }
+
         printf("请输入过敏史(无则填无, 输入0取消): ");
         safeGetString(newPatient->allergy, 100);
-        if(strcmp(newPatient->allergy, "0") == 0) { free(newPatient); return; }
+        if (strcmp(newPatient->allergy, "0") == 0) { free(newPatient); return; }
         if (strlen(newPatient->allergy) == 0) strcpy(newPatient->allergy, "无");
     }
     else {
-        newPatient->age = -1; 
+        newPatient->age = -1;
         strcpy(newPatient->allergy, "急诊未知");
     }
 
-    generatePatientID(newPatient->id); 
+    generatePatientID(newPatient->id);
     newPatient->balance = 0.0;
 
     temp = patientHead;
     while (temp->next) temp = temp->next;
     temp->next = newPatient;
 
-    printf("\n  [√] 系统建档圆满成功！\n");
+    printf("\n  [√] 系统建档操作已完成。\n");
     printf("  ==========================================\n");
     printf("  您的终身就诊识别码为: 【 %s 】 (凭此号登录)\n", newPatient->id);
     printf("  ==========================================\n");
@@ -171,15 +174,15 @@ void bookAppointment(const char* currentPatientId) {
             for (i = 0; i < dCount; i++) printf("[%s] ", depts[i]);
             printf("\n  请输入您要挂号的目标科室名称 (输入0返回): ");
             safeGetString(keyword, 50);
-            if(strcmp(keyword, "0") == 0) continue;
+            if (strcmp(keyword, "0") == 0) continue;
         }
         else if (choice == 2) {
             printf("  请输入医生精确姓名或纯数字工号 (如:李四 / 1001, 输入0返回): ");
             safeGetString(keyword, 50);
-            if(strcmp(keyword, "0") == 0) continue;
+            if (strcmp(keyword, "0") == 0) continue;
         }
         else {
-            printf("  [!] 输入有误，请重新选择。\n");
+            printf("  [!] 无效的菜单选项，请正确输入菜单中提供的数字编号！\n");
             system("pause");
             continue;
         }
@@ -219,19 +222,19 @@ void bookAppointment(const char* currentPatientId) {
             s = s->next;
         }
 
-        if (found == 0) { printf("\n  [!] 很抱歉，未搜索到满足条件的排班源。\n"); system("pause"); continue; }
+        if (found == 0) { printf("\n  [!] 数据流反馈：未搜索到满足当前条件的排班资源。\n"); system("pause"); continue; }
 
         printf("----------------------------------------------------------------------------------\n");
-        printf("  请输入要锁定的【排班ID】 (输入0重新搜索): ");
+        printf("  请输入要确认选择的【排班ID】 (输入0重新搜索): ");
         targetSchId = safeGetInt(); if (targetSchId == 0) continue;
 
         s = scheduleList;
         while (s) { if (s->schedule_id == targetSchId) { targetSch = s; break; } s = s->next; }
-        if (!targetSch) { printf("  [!] 输入越界：无效的排班ID！\n"); system("pause"); continue; }
+        if (!targetSch) { printf("  [!] 参数越界：排班ID不属于有效集合。\n"); system("pause"); continue; }
 
         d = doctorList;
         while (d) { if (d->id == targetSch->doctor_id) { targetDoc = d; break; } d = d->next; }
-        if (!targetDoc) { printf("  [!] 数据异常：排班表引用的医生档案丢失！\n"); system("pause"); continue; }
+        if (!targetDoc) { printf("  [!] 底层数据异常：医生档案关联引用失败。\n"); system("pause"); continue; }
 
         sprintf(staffIdStr, "D%d", targetDoc->id);
 
@@ -257,33 +260,33 @@ void bookAppointment(const char* currentPatientId) {
             rec = rec->next;
         }
 
-        if (hospitalDailyCount >= 1000) { printf("\n  [拦截] 全院挂号总系统熔断：单日1000号上限已满！\n"); system("pause"); continue; }
-        if (patientDailyActive >= 5) { printf("\n  [拦截] 个人防刷限制：您单日最多只允许挂5个号！\n"); system("pause"); continue; }
-        if (patientDeptDailyActive >= 1) { printf("\n  [拦截] 同科室互斥：您同日同科室已被限制只能挂一个！\n"); system("pause"); continue; }
-        if (sameDocSameDay) { printf("\n  [拦截] 您已成功挂过该医生该日的号，切勿重复挤占医疗资源！\n"); system("pause"); continue; }
+        if (hospitalDailyCount >= 1000) { printf("\n  [系统过载] 全院日门诊量已达设定阈值，请求被驳回。\n"); system("pause"); continue; }
+        if (patientDailyActive >= 5) { printf("\n  [策略约束] 患者单日预约次数已达上限。\n"); system("pause"); continue; }
+        if (patientDeptDailyActive >= 1) { printf("\n  [策略约束] 存在科室互斥，同日同科室不允许重复挂号。\n"); system("pause"); continue; }
+        if (sameDocSameDay) { printf("\n  [策略约束] 该日已存在相同医师的挂号记录，系统拒绝重复占用医疗资源。\n"); system("pause"); continue; }
 
         if (docDailyCount >= 50) {
             recCount = 0;
             altS = scheduleList;
-            printf("\n  [号源已空] %s 医生在 %s 的 50 个号源已被抢光！\n", targetDoc->name, targetSch->date);
-            printf("  >>> 智能匹配系统为您推荐以下备选方案 <<<\n");
+            printf("\n  [资源售罄] %s 医生在 %s 的有效号源已全部分配完毕。\n", targetDoc->name, targetSch->date);
+            printf("  >>> 调度系统为您推荐以下相似接诊资源 <<<\n");
 
-            printf("\n  [方案一：该医师的其他出诊日]\n");
+            printf("\n  [分支一：该医师的其他接诊时段]\n");
             while (altS) {
                 if (altS->doctor_id == targetDoc->id && strcmp(altS->date, targetSch->date) != 0 && strcmp(altS->shift, "休息") != 0 && strcmp(altS->date, today) >= 0 && strcmp(altS->date, nextWeek) <= 0) {
-                    printf("    -> 排班ID [%d] 日期: %s 班次: %s\n", altS->schedule_id, altS->date, altS->shift); recCount++;
+                    printf("    -> 资源索引 [%d] 日期: %s 班次: %s\n", altS->schedule_id, altS->date, altS->shift); recCount++;
                 }
                 altS = altS->next;
             }
 
-            printf("\n  [方案二：[%s] 同日出诊的其他同事]\n", targetDoc->department);
+            printf("\n  [分支二：同日同科室的出诊医师]\n");
             altS = scheduleList;
             while (altS) {
                 if (strcmp(altS->date, targetSch->date) == 0 && altS->doctor_id != targetDoc->id && strcmp(altS->shift, "休息") != 0) {
                     altD = doctorList;
                     while (altD) {
                         if (altD->id == altS->doctor_id && strcmp(altD->department, targetDoc->department) == 0) {
-                            printf("    -> 排班ID [%d] 医生: %s 班次: %s\n", altS->schedule_id, altD->name, altS->shift);
+                            printf("    -> 资源索引 [%d] 医生: %s 班次: %s\n", altS->schedule_id, altD->name, altS->shift);
                             recCount++; break;
                         }
                         altD = altD->next;
@@ -291,7 +294,7 @@ void bookAppointment(const char* currentPatientId) {
                 }
                 altS = altS->next;
             }
-            if (recCount == 0) printf("  系统暂无其他可推荐排班，请改日再试。\n");
+            if (recCount == 0) printf("  未命中相似属性资源，请重置过滤条件。\n");
             system("pause"); continue;
         }
 
@@ -317,16 +320,15 @@ void bookAppointment(const char* currentPatientId) {
 
         temp = recordHead; while (temp->next) temp = temp->next; temp->next = newRecord;
 
-        printf("\n  [√ 抢号成功] 您已锁定 %s 医师 的号源！待缴费用 %.2f 元。\n", targetDoc->name, regFee);
+        printf("\n  [√ 事务确认] %s 医师接诊号源申请成功！系统产生待支付流水 %.2f 元。\n", targetDoc->name, regFee);
         printf("  =======================================================\n");
-        printf("  >>> 您在当天的专属候诊顺序为：【 第 %d 号 】 <<<\n", seqNum);
+        printf("  >>> 当日分诊系统的预计算序号为：【 第 %d 号 】 <<<\n", seqNum);
         printf("  =======================================================\n");
-        printf("  (注：请立即前往[财务中心]缴费，未交钱的挂号单将无法被医生接诊)\n");
+        printf("  (系统提示：请至费用中心结清账单，否则当前流水将不会被下发至接诊大厅)\n");
         system("pause"); return;
     }
 }
 
-// 加上 static 关键字，将作用域限制在本文件内，完美解决 LNK2005 链接报错
 static void checkAndAutoDischarge(Record* rec, const char* currentPatientId) {
     if (rec->type == 5 && strstr(rec->description, "出院清算_补缴欠费差额")) {
         char bedId[20] = { 0 };
@@ -336,7 +338,6 @@ static void checkAndAutoDischarge(Record* rec, const char* currentPatientId) {
         char summary[200];
 
         if (sscanf(rec->description, "出院清算_补缴欠费差额_床位:%19[^_]_床费:%lf_药费:%lf", bedId, &bFee, &dFee) == 3) {
-
             b = bedHead->next;
             while (b) { if (strcmp(b->bedId, bedId) == 0) { b->isOccupied = 0; strcpy(b->patientId, ""); break; } b = b->next; }
 
@@ -354,7 +355,7 @@ static void checkAndAutoDischarge(Record* rec, const char* currentPatientId) {
             }
 
             strcpy(rec->description, "出院清算尾款结清");
-            printf("\n  [系统自动流转] 检测到住院尾款结清！\n  系统已全自动为您解除病床占用，最终出院结算单已生成，请前往档案库提取。\n");
+            printf("\n  [业务流转反馈] 资金接口监听到出院尾款入账。\n  系统已释放相关住院资源配置，结算清单归档操作完成。\n");
         }
     }
 }
@@ -383,14 +384,14 @@ void financeCenter(const char* currentPatientId) {
         printf("\n========== 个人财务结算中心 ==========\n");
         printf("  [当前账户可用余额]:  %.2f 元\n", p->balance);
         printf("--------------------------------------\n");
-        printf("  [1] 在线网银充值 (余额充值)\n  [2] 待处理账单清算 (一键缴费)\n  [0] 返回控制大厅\n");
+        printf("  [1] 在线网银充值 (预存备用金)\n  [2] 待处理账单清算 (聚合结算)\n  [0] 返回主终端\n");
         printf("  业务指令: ");
 
         choice = safeGetInt();
         if (choice == 0) return;
 
         if (choice == 1) {
-            printf("\n  请输入需充值的金额 (￥, 输入0取消): ");
+            printf("\n  请输入需充值的金额 (输入0取消): ");
             money = safeGetDouble();
             if (money > 0) {
                 p->balance += money;
@@ -400,11 +401,11 @@ void financeCenter(const char* currentPatientId) {
                 r7->type = 7; strcpy(r7->patientId, currentPatientId); strcpy(r7->staffId, "SYS");
                 r7->cost = money; r7->isPaid = 1; sprintf(r7->description, "终端自助充值入账");
                 getCurrentTimeStr(r7->createTime, 30); r7->next = recordHead->next; recordHead->next = r7;
-                printf("  [√] 充值通道顺畅，%.2f 元已实时到账！\n", money); system("pause");
+                printf("  [完成] 充值业务受理成功，相关资产已到账，金额: %.2f 元。\n", money); system("pause");
             }
-            else { 
-                if(money != 0) {
-                    printf("  [!] 充值金额必须大于0！\n"); system("pause"); 
+            else {
+                if (money != 0) {
+                    printf("  [异常] 充值数额校验失败，必须为正值参数。\n"); system("pause");
                 }
             }
         }
@@ -413,35 +414,38 @@ void financeCenter(const char* currentPatientId) {
                 hasUnpaid = 0;
                 totalUnpaidCost = 0.0;
                 system("cls");
-                printf("\n========== 待结算财务账单 ==========\n");
+                printf("\n========== 待清算账单明细列表 ==========\n");
                 rec = recordHead->next;
 
                 while (rec) {
                     if (strcmp(rec->patientId, currentPatientId) == 0 && rec->isPaid == 0) {
                         switch (rec->type) {
-                        case 1:strcpy(typeName, "挂号费"); break;
-                        case 2:strcpy(typeName, "诊疗费"); break;
-                        case 3:strcpy(typeName, "药房配药"); break;
-                        case 4:strcpy(typeName, "辅助检查"); break;
-                        case 5:strcpy(typeName, "住院押金/尾款"); break;
+                        case 1:strcpy(typeName, "门诊挂号"); break;
+                        case 2:strcpy(typeName, "临床诊疗"); break;
+                        case 3:strcpy(typeName, "药事调拨"); break;
+                        case 4:strcpy(typeName, "辅助检验"); break;
+                        case 5:strcpy(typeName, "住院账目"); break;
                         }
-                        printf("  单号: %-12s | 类别: [%-10s] | 金额: %-8.2f | 摘要: %s\n", rec->recordId, typeName, rec->cost, rec->description);
+                        printf("  流水号: %-12s | 业务项: [%-10s] | 实收: %-8.2f | 备忘录: %s\n", rec->recordId, typeName, rec->cost, rec->description);
                         totalUnpaidCost += rec->cost; hasUnpaid = 1;
                     }
                     rec = rec->next;
                 }
 
-                if (!hasUnpaid) { printf("  您目前没有任何处于欠费状态的账单！\n"); system("pause"); break; }
+                if (!hasUnpaid) { printf("  [核查反馈] 当前用户节点下未检测到未决的财务单据。\n"); system("pause"); break; }
 
                 printf("----------------------------------------------------------------------\n");
-                printf("  [系统汇总] 待清算总额: %.2f 元  |  可用余额: %.2f 元\n\n", totalUnpaidCost, p->balance);
-                printf("  1. 开启一键全选缴费 (统账核销)\n  2. 输入独立单号逐个清算\n  0. 退出结算\n  请选择: ");
+                printf("  [资金比对] 待清算债务总额: %.2f 元  |  账户备用余额: %.2f 元\n\n", totalUnpaidCost, p->balance);
+                printf("  1. 开启一键聚合支付 (全额核销)\n  2. 提取指定流水号执行单项核销\n  0. 返回上一级\n  请选择: ");
 
                 payChoice = safeGetInt();
                 if (payChoice == 0) break;
 
                 if (payChoice == 1) {
-                    if (p->balance < totalUnpaidCost) { printf("  [!] 微信/支付宝余额不足，请先返回充值！(当前资金缺口: %.2f 元)\n", totalUnpaidCost - p->balance); system("pause"); }
+                    if (p->balance < totalUnpaidCost) {
+                        printf("  [拒绝执行] 账户流动资金不足以覆盖总负债。(资金缺口: %.2f 元)\n", totalUnpaidCost - p->balance);
+                        system("pause");
+                    }
                     else {
                         rec = recordHead->next;
                         while (rec) {
@@ -461,20 +465,20 @@ void financeCenter(const char* currentPatientId) {
                             }
                             rec = rec->next;
                         }
-                        printf("  [√] 账务总清算成功执行！\n"); system("pause"); break;
+                        printf("  [处理成功] 当前所有挂起账单已完成聚合清算。\n"); system("pause"); break;
                     }
                 }
                 else if (payChoice == 2) {
                     tRec = NULL;
-                    printf("\n  请输入需独立清算的具体单号 (输入0取消): ");
+                    printf("\n  请输入需独立清算的单据流水号 (输入0取消): ");
                     safeGetString(target, 30);
                     if (strcmp(target, "0") == 0) continue;
 
                     rec = recordHead->next;
                     while (rec) { if (strcmp(rec->recordId, target) == 0 && rec->isPaid == 0) { tRec = rec; break; } rec = rec->next; }
-                    if (!tRec) { printf("  [!] 单号输入错误或该单据已结清。\n"); system("pause"); continue; }
+                    if (!tRec) { printf("  [!] 流水寻址失败：单号输入错误或该笔单据已被系统核销。\n"); system("pause"); continue; }
 
-                    if (p->balance < tRec->cost) { printf("  [!] 余额告急，无法覆盖本单据支出！\n"); system("pause"); }
+                    if (p->balance < tRec->cost) { printf("  [拒绝执行] 账户余额不足以抵扣此笔单项交易。\n"); system("pause"); }
                     else {
                         maxId = 0;
                         p->balance -= tRec->cost; tRec->isPaid = 1;
@@ -486,12 +490,20 @@ void financeCenter(const char* currentPatientId) {
                         newTrans->amount = tRec->cost; getCurrentTimeStr(newTrans->time, 30); strcpy(newTrans->description, tRec->description); newTrans->next = NULL;
                         if (!transactionList) transactionList = newTrans; else { curr = transactionList; while (curr->next) curr = curr->next; curr->next = newTrans; }
 
-                        printf("  [√] %s 单据核销成功！实扣款 %.2f 元。\n", tRec->recordId, tRec->cost);
+                        printf("  [处理成功] 单据 %s 核销完毕，产生扣除记录 %.2f 元。\n", tRec->recordId, tRec->cost);
                         checkAndAutoDischarge(tRec, currentPatientId);
                         system("pause");
                     }
                 }
+                else {
+                    printf("  [!] 无效的菜单选项，请正确输入提供的数字编号！\n");
+                    system("pause");
+                }
             }
+        }
+        else {
+            printf("  [!] 无效的菜单选项，请正确输入提供的数字编号！\n");
+            system("pause");
         }
     }
 }
@@ -513,32 +525,32 @@ void medicalRecords(const char* currentPatientId) {
         char typeName[30];
 
         system("cls");
-        printf("\n========== 个人医疗时序档案库 ==========\n");
-        printf("  [1] ① 挂号与分诊排队记录\n");
-        printf("  [2] ② 临床看诊与医嘱记录\n");
-        printf("  [3] ③ 门诊电子处方与拿药单\n");
-        printf("  [4] ④ 影像与生化辅助检查单\n");
-        printf("  [5] ⑤ 住院全周期溯源与总账单\n");
-        printf("  [6] 个人资金流出入全景报表\n");
-        printf("  [0] 关闭档案库\n");
+        printf("\n========== 个人医疗时序档案检索平台 ==========\n");
+        printf("  [1] ① 调取门诊与排号时序表\n");
+        printf("  [2] ② 调取临床诊疗与医嘱报告\n");
+        printf("  [3] ③ 调取门诊处方与耗材划扣清单\n");
+        printf("  [4] ④ 调取辅助生化与影像开单记录\n");
+        printf("  [5] ⑤ 进入住院生命周期数据沙盘\n");
+        printf("  [6] 汇总终身财务进出流水总账\n");
+        printf("  [0] 退出检索平台\n");
         printf("----------------------------------------\n");
-        printf("  请调取卷宗编号: ");
+        printf("  请指派数据抽取卷宗号: ");
 
         c = safeGetInt();
         if (c == 0) return;
 
         if (c >= 1 && c <= 4) {
             printed = 0;
-            printf("\n--- 门诊单据查询回执 ---\n");
+            printf("\n--- 门诊业务类型查询结果反馈 ---\n");
             rec = recordHead->next;
             while (rec) {
                 if (strcmp(rec->patientId, currentPatientId) == 0 && rec->type == c && rec->isPaid != 4 && !strstr(rec->description, "[住院记账]")) {
-                    printf("  流水号: %-12s | 时间: %s | 花费: %-6.2f | 细节: %s\n", rec->recordId, rec->createTime, rec->cost, rec->description);
+                    printf("  记录流水: %-12s | 快照: %s | 净值: %-6.2f | 业务详述: %s\n", rec->recordId, rec->createTime, rec->cost, rec->description);
                     printed = 1;
                 }
                 rec = rec->next;
             }
-            if (!printed) printf("  [空] 系统底层未检索到属于该分类的门诊履历。\n");
+            if (!printed) printf("  [数据空置] 底层结构中无关联的可用溯源数据。\n");
             system("pause");
         }
         else if (c == 5) {
@@ -547,50 +559,50 @@ void medicalRecords(const char* currentPatientId) {
                 tRec = NULL;
 
                 system("cls");
-                printf("\n========== ⑤ 住院追溯与最终结算账单 ==========\n");
+                printf("\n========== 住院业务数据聚合与清算总单溯源 ==========\n");
                 rec = recordHead->next;
-                printf("  %-15s | %-10s | %-16s | %-20s\n", "系统流转单号", "统筹发生额", "实时状态", "发起时间");
+                printf("  %-15s | %-10s | %-16s | %-20s\n", "系统统筹编号", "基准发生额", "执行状态界定", "时间流创建戳");
                 printf("--------------------------------------------------------------------\n");
                 while (rec) {
                     if (strcmp(rec->patientId, currentPatientId) == 0 && rec->type == 5) {
-                        if (rec->isPaid == 0) strcpy(statusStr, "[待缴尾款出院]");
-                        else if (rec->isPaid == 1) strcpy(statusStr, "[在院(押金担保)]");
-                        else strcpy(statusStr, "[已闭环结算出院]");
+                        if (rec->isPaid == 0) strcpy(statusStr, "[挂起待缴]");
+                        else if (rec->isPaid == 1) strcpy(statusStr, "[运行期(预存生效)]");
+                        else strcpy(statusStr, "[闭环并结档]");
 
                         printf("  %-15s | %-10.2f | %-16s | %-20s\n", rec->recordId, rec->cost, statusStr, rec->createTime);
                         count++;
                     }
                     rec = rec->next;
                 }
-                if (count == 0) { printf("  当前暂无任何病房入住与登记记录。\n"); system("pause"); break; }
+                if (count == 0) { printf("  平台校验反馈：未索引到关联的病区驻留与注册流水。\n"); system("pause"); break; }
 
                 printf("--------------------------------------------------------------------\n");
-                printf("  [数据提取] 请输入您要查看详细清单的【系统流转单号】 (输入0返回): ");
+                printf("  [数据提取] 为执行明细下钻分析，请提供【系统统筹编号】 (输入0返回): ");
                 safeGetString(target, 30);
                 if (strcmp(target, "0") == 0) break;
 
                 rec = recordHead->next;
                 while (rec) { if (strcmp(rec->recordId, target) == 0 && rec->type == 5 && strcmp(rec->patientId, currentPatientId) == 0) { tRec = rec; break; } rec = rec->next; }
-                if (!tRec) { printf("  [!] 输入越界，流转单号无法解析！\n"); system("pause"); continue; }
+                if (!tRec) { printf("  [!] 输入越界，参数无法命中有效的流转树结构。\n"); system("pause"); continue; }
 
                 system("cls");
-                printf("\n========== 深度住院详情溯源 (%s) ==========\n", tRec->recordId);
-                printf("  【时效基础】\n  发起快照: %s\n  摘要信息: %s\n", tRec->createTime, tRec->description);
+                printf("\n========== 数据分析视图 - 住院链路拆解 (%s) ==========\n", tRec->recordId);
+                printf("  【初始环境约束】\n  触发时间节点: %s\n  核心属性集: %s\n", tRec->createTime, tRec->description);
 
                 if (tRec->isPaid == 2 && strstr(tRec->description, "出院结算")) {
                     hasDrug = 0;
-                    printf("\n  【资金多退少补盘点】\n");
-                    printf("   + 原始冻结押金: %.2f 元\n", tRec->cost);
+                    printf("\n  【统筹资金收支盘点域】\n");
+                    printf("   + 账期初期投入保障资金: %.2f 元\n", tRec->cost);
                     r_link = recordHead->next;
                     while (r_link) {
                         if (strcmp(r_link->patientId, currentPatientId) == 0) {
-                            if (r_link->type == 8 && strstr(r_link->description, "出院清算_押金结余退回")) printf("   - 结余资金核销: %.2f 元 (已退回至个人账户余额, 关联单号:%s)\n", r_link->cost, r_link->recordId);
-                            else if (r_link->type == 5 && strstr(r_link->description, "出院清算尾款结清")) printf("   + 差额追缴补清: %.2f 元 (财务端已核销, 关联单号:%s)\n", r_link->cost, r_link->recordId);
+                            if (r_link->type == 8 && strstr(r_link->description, "出院清算_押金结余退回")) printf("   - 链路完结盈余清退: %.2f 元 (已退池至虚拟账户, 关联依据:%s)\n", r_link->cost, r_link->recordId);
+                            else if (r_link->type == 5 && strstr(r_link->description, "出院清算尾款结清")) printf("   + 账期末补录欠款清缴: %.2f 元 (前端聚合支付已消化, 关联依据:%s)\n", r_link->cost, r_link->recordId);
                         }
                         r_link = r_link->next;
                     }
 
-                    printf("\n  【住院期间病床用药明细追溯】\n");
+                    printf("\n  【物理隔离区药材资源异动表】\n");
                     r_drug = recordHead->next;
                     while (r_drug) {
                         if (strcmp(r_drug->patientId, currentPatientId) == 0 && r_drug->type == 3 && strstr(r_drug->description, "[住院记账]")) {
@@ -598,13 +610,13 @@ void medicalRecords(const char* currentPatientId) {
                         }
                         r_drug = r_drug->next;
                     }
-                    if (!hasDrug) printf("   └─ (住院期间未产生任何药品与耗材调拨数据)\n");
+                    if (!hasDrug) printf("   └─ (数据验证一致：本流转周期内未发生病区级药事调用行为)\n");
                 }
                 else if (tRec->isPaid == 1 && !strstr(tRec->description, "出院清算")) {
                     hasDrug = 0;
-                    printf("\n  【状态追踪】病患正在积极康复住院中...\n");
-                    printf("   + 已上缴统筹押金: %.2f 元\n", tRec->cost);
-                    printf("\n  【未出账的内部挂账药单】\n");
+                    printf("\n  【实时态链路分析】系统正在持续追踪该主体的在院生命周期...\n");
+                    printf("   + 系统维系担保金池配额: %.2f 元\n", tRec->cost);
+                    printf("\n  【挂载态内部挂账耗材明细】\n");
                     r_drug = recordHead->next;
                     while (r_drug) {
                         if (strcmp(r_drug->patientId, currentPatientId) == 0 && r_drug->type == 3 && r_drug->isPaid == 4 && strstr(r_drug->description, "[住院记账]")) {
@@ -612,10 +624,10 @@ void medicalRecords(const char* currentPatientId) {
                         }
                         r_drug = r_drug->next;
                     }
-                    if (!hasDrug) printf("   └─ (暂未生成挂账的药事明细)\n");
+                    if (!hasDrug) printf("   └─ (尚未检测到被异步挂起的预记账开支)\n");
                 }
                 else if (tRec->isPaid == 0) {
-                    printf("\n  【流程锁死】由于押金穿透产生尾款，系统已切断出院流转链路，请移步收银中心进行尾款补缴！\n");
+                    printf("\n  【流程锁死预警】该生命周期遭遇资金阻断，押金储备已被消耗殆尽。\n  底层资源控制器已关闭病区剥离权限，直至剩余欠款由支付终端平账。\n");
                 }
                 printf("\n-------------------------------------------------------------------\n");
                 system("pause");
@@ -624,38 +636,42 @@ void medicalRecords(const char* currentPatientId) {
         else if (c == 6) {
             totalSpent = 0.0; totalRecharged = 0.0; totalRefunded = 0.0;
             printed = 0;
-            printf("\n========== 个人终身资金流动审计报表 ==========\n");
+            printf("\n========== 个体终身资产流入流出全局审计报表 ==========\n");
             rec = recordHead->next;
 
-            printf(" %-20s | %-10s | %-10s | %-40s\n", "交易快照时间", "财务方向", "变动金额", "核心摘要");
+            printf(" %-20s | %-10s | %-10s | %-40s\n", "系统登记时间戳", "变动矢量", "振幅金额", "特征字段");
             printf("------------------------------------------------------------------------------------------\n");
 
             while (rec) {
                 if (strcmp(rec->patientId, currentPatientId) == 0) {
                     if (rec->type >= 1 && rec->type <= 5 && rec->isPaid > 0 && rec->isPaid != 4) {
                         if (!(rec->type == 3 && strstr(rec->description, "[住院记账]"))) {
-                            totalSpent += rec->cost; strcpy(typeName, "扣减 (-)");
+                            totalSpent += rec->cost; strcpy(typeName, "耗损 (-)");
                             printf(" %-20s | %-10s | %-10.2f | %-40s\n", rec->createTime, typeName, rec->cost, rec->description); printed = 1;
                         }
                     }
                     else if (rec->type == 7) {
-                        totalRecharged += rec->cost; strcpy(typeName, "注资 (+)");
+                        totalRecharged += rec->cost; strcpy(typeName, "汇入 (+)");
                         printf(" %-20s | %-10s | %-10.2f | %-40s\n", rec->createTime, typeName, rec->cost, rec->description); printed = 1;
                     }
                     else if (rec->type == 8) {
-                        totalRefunded += rec->cost; strcpy(typeName, "冲退 (+)");
+                        totalRefunded += rec->cost; strcpy(typeName, "清退 (+)");
                         printf(" %-20s | %-10s | %-10.2f | %-40s\n", rec->createTime, typeName, rec->cost, rec->description); printed = 1;
                     }
                 }
                 rec = rec->next;
             }
-            if (!printed) printf("  数据盘为空，当前账户尚未发生任何资产变动。\n");
+            if (!printed) printf("  检索模块反馈：暂未发现足以构建审计链路的财务活动数据。\n");
             printf("------------------------------------------------------------------------------------------\n");
-            printf("  【宏观收支折算】总充值金额: +%.2f | 结算余款冲退: +%.2f | 实际核销开销: -%.2f\n", totalRecharged, totalRefunded, totalSpent);
+            printf("  【整合矩阵分析】 绝对注资金额: +%.2f | 系统冲账返还: +%.2f | 业务实发核销: -%.2f\n", totalRecharged, totalRefunded, totalSpent);
 
             p = findPatientById(currentPatientId);
-            if (p) printf("  >>> [当前资金池可用结余]: ￥ %.2f <<<\n", p->balance);
-            printf("\n  (注：住院产生的所有药事与床位开销已被系统打包映射至【⑤住院溯源总账】内进行结算统筹。)\n");
+            if (p) printf("  >>> [账本比对] 当前存储池预留基数: ￥ %.2f <<<\n", p->balance);
+            printf("\n  (报表申明：发生于住院框架内衍生的药事耗减，已被底层结算网格接管执行映射，此处仅作统一披露。)\n");
+            system("pause");
+        }
+        else {
+            printf("  [!] 无效的菜单选项，请正确输入提供的数字编号！\n");
             system("pause");
         }
     }
@@ -667,25 +683,23 @@ void changePatientPassword(const char* currentId) {
 
     if (!p) return;
 
-    printf("\n========== 账户安全密钥变更 ==========\n");
-    printf("请输入原始登录密码 (输入0取消): "); safeGetString(oldPwd, 50); if (strcmp(oldPwd, "0") == 0) return;
+    printf("\n========== 核心安全凭证更替操作 ==========\n");
+    printf("请输入原始加密串进行握手校验 (输入0取消): "); safeGetString(oldPwd, 50); if (strcmp(oldPwd, "0") == 0) return;
 
-    if (strcmp(p->password, oldPwd) != 0) { printf("  [!] 安全防火墙拦截：密码校验失败，无权操作！\n"); system("pause"); return; }
+    if (strcmp(p->password, oldPwd) != 0) { printf("  [安全阻断] 特征匹配失败，已拒绝篡改权限的下发！\n"); system("pause"); return; }
 
-    while (1) { 
-        printf("请输入新的安全密码 (输入0取消): "); 
-        safeGetString(newPwd, 50); 
-        if (strcmp(newPwd, "0") == 0) return;
-        if (strlen(newPwd) > 0) break; 
-    }
-    printf("请再次输入以确认密码 (输入0取消): "); 
+    printf("请输入目标设定的新版密钥 (仅限数字或字母组合, 输入0取消): ");
+    safeGetPassword(newPwd, 50);
+    if (strcmp(newPwd, "0") == 0) return;
+
+    printf("重复输入以完成校验签名 (输入0取消): ");
     safeGetString(confirmPwd, 50);
     if (strcmp(confirmPwd, "0") == 0) return;
 
-    if (strcmp(newPwd, confirmPwd) != 0) { printf("  [!] 校验不符：两次输入结果不一致，拒绝修改请求。\n"); system("pause"); return; }
+    if (strcmp(newPwd, confirmPwd) != 0) { printf("  [异常] 二次校验哈希不一致，本次指令被系统抛弃。\n"); system("pause"); return; }
 
     strcpy(p->password, newPwd);
-    printf("  [√] 数据更新成功，您的登录凭证已完成安全覆写！\n"); system("pause");
+    printf("  [完成] 底层持久化写入成功，您的服务凭证已安全重置！\n"); system("pause");
 }
 
 void userTerminal(const char* currentId) {
@@ -696,15 +710,15 @@ void userTerminal(const char* currentId) {
         system("cls");
         p = findPatientById(currentId);
         printf("\n======================================================\n");
-        printf("   患者专属自助数据终端   [ 当前登录: %s (%s) ]\n", p->name, p->id);
+        printf("   患者专属自助数据终端   [ 登录实体映射: %s (%s) ]\n", p->name, p->id);
         printf("======================================================\n");
-        printf("  [1] 门诊分诊号源预约 (自助抢号)\n");
-        printf("  [2] 全局财务费用中心 (充值/交费)\n");
-        printf("  [3] 个人终身医疗档案库 (追溯化验/处方/住院数据)\n");
-        printf("  [4] 账户级别安全防控 (修改密码)\n");
-        printf("  [0] 注销会话并退出终端\n");
+        printf("  [1] 门诊分诊池资源挂靠 (在线预约)\n");
+        printf("  [2] 全局资产池管理与交割 (账户清算)\n");
+        printf("  [3] 终身个人医疗数据树检索 (报告提取)\n");
+        printf("  [4] 底层访问安全设定 (密钥运维)\n");
+        printf("  [0] 断开进程执行栈返回主控区\n");
         printf("------------------------------------------------------\n");
-        printf("  请选择所需服务编号: ");
+        printf("  请指派所需调用的系统内核级编号: ");
 
         option = safeGetInt();
         switch (option) {
@@ -713,6 +727,10 @@ void userTerminal(const char* currentId) {
         case 3: medicalRecords(currentId); break;
         case 4: changePatientPassword(currentId); break;
         case 0: return;
+        default:
+            printf("  [!] 无效的菜单选项，请正确输入菜单中提供的数字编号！\n");
+            system("pause");
+            break;
         }
     }
 }
