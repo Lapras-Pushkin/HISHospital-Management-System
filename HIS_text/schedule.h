@@ -12,8 +12,6 @@ typedef struct Schedule {
 
 extern Schedule* scheduleList;
 
-void loadSchedules(void);
-void saveSchedules(void);
 void scheduleMenu(void);
 void deleteScheduleByDoctorId(int doctorId);// 根据医生ID删除相关排班（专门为医生被删除时调用）
 

@@ -13,8 +13,6 @@ typedef struct Admin {
 extern Admin admin;
 
 // 数据管理及个人设置接口
-void loadAdminData(void);
-void saveAdminData(void);
 void changePassword(void);
 void editPersonalInfo(void);
 void personalMenu(void);
@@ -22,4 +20,4 @@ void personalMenu(void);
 // 向 main 暴露的管理端大屏入口
 void adminMenu(void);
 
-#endif#pragma once
+#endif

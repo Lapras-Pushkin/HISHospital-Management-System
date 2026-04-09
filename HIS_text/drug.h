@@ -1,3 +1,4 @@
+#pragma once
 #ifndef DRUG_H
 #define DRUG_H
 
@@ -17,7 +18,7 @@ typedef struct Drug {
 
 typedef struct DrugHistory {
     int drug_id;
-    int type;           // 1=Èë¿â, 2=³ö¿â
+    int type;           // 1=ï¿½ï¿½ï¿½, 2=ï¿½ï¿½ï¿½ï¿½
     int quantity;
     char time[15];
     struct DrugHistory* next;
@@ -26,13 +27,9 @@ typedef struct DrugHistory {
 extern Drug* drugList;
 extern DrugHistory* drugHistoryList;
 
-void loadDrugs(void);
-void saveDrugs(void);
-void loadDrugHistory(void);
-void saveDrugHistory(void);
 void drugMenu(void);
 static int isDrugIdExists(int id);
 void initDrugList();
 
 #endif
-#pragma once
+

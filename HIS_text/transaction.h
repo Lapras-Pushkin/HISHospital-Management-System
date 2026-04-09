@@ -24,8 +24,6 @@ extern Transaction* transactionList;
 // 人事报表链表头指针
 extern PersonnelReport* personnelReportList;
 // 核心业务函数声明
-void loadTransactions(void);
-void saveTransactions(void);
 void reportMenu(void);
 void parttimereport(char* start,char* end);//专用于财务报表的输出格式化展示
 

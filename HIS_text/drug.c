@@ -3,14 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "utils.h" // 强行引入安全输入防护组件
-
-// 链表头指针
+#include "utils.h" 
+#include "fileio.h"
 Drug* drugList;
 DrugHistory* drugHistoryList;
-//——————————————————————————————
-// 辅助函数：检查药品ID是否已存在，防止重复添加
-// ——————————————————————————————
+
 static int isDrugIdExists(int id) {
     Drug* p = drugList->next;
     while (p) {
@@ -19,121 +16,7 @@ static int isDrugIdExists(int id) {
     }
     return 0;
 }
-// ---------------------------------------------------------
-//从文件加载药品数据到内存链表
-// ---------------------------------------------------------
-void loadDrugs() {
-    FILE* fp = fopen("drugs.txt", "r");
-    if (!fp) return;  // 无数据
 
-    char line[512];
-    Drug d;
-    Drug* tail = NULL;
-    // 用strtok函数按逗号分割每行数据，并依次赋值给药品结构体的字段
-    while (fgets(line, sizeof(line), fp)) {
-        // 除去行末的换行符，防止干扰字符串解析
-        line[strcspn(line, "\n")] = 0;
-
-        char* token = strtok(line, ",");
-        if (token) d.id = atoi(token); else d.id = 0;//编号
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.name, token); else d.name[0] = '\0';//名称
-        token = strtok(NULL, ",");
-        if (token) d.stock = atoi(token); else d.stock = 0;//库存
-        token = strtok(NULL, ",");
-        if (token) d.price = atof(token); else d.price = 0.0;//价格
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.batch, token); else d.batch[0] = '\0';//批次
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.expiry, token); else d.expiry[0] = '\0';//有效期
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.last_in, token); else d.last_in[0] = '\0';//最新入库时间
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.last_out, token); else d.last_out[0] = '\0';//最新出库时间
-
-        // 写入链表,尾插法
-        Drug* node = (Drug*)malloc(sizeof(Drug));
-        *node = d;
-        if (drugList->next == NULL) {
-            drugList->next = node;
-            tail = node;
-        }
-        else {
-            tail->next = node;
-            tail = node;
-        } 
-    }
-	tail->next = NULL;  // 确保链表末尾指针正确设置
-    fclose(fp);
-}
-// ---------------------------------------------------------
-// 保存链表中的药品数据到本地文件
-// ---------------------------------------------------------
-void saveDrugs() {
-    FILE* fp = fopen("drugs.txt", "w");
-    if (!fp) return;
-    Drug* p = drugList->next;
-    while (p) {
-        fprintf(fp, "%d,%s,%d,%.2f,%s,%s,%s,%s\n",
-            p->id, p->name, p->stock, p->price,
-            p->batch, p->expiry, p->last_in, p->last_out);
-        p = p->next;
-    }
-    fclose(fp);
-}
-
-// --------------------------------------------------------
-//加载药品出入库历史记录到内存链表
-// --------------------------------------------------------
-void loadDrugHistory() {
-    FILE* fp = fopen("drug_history.txt", "r");
-    if (!fp) return;
-
-    char line[512];
-    DrugHistory h;
-    DrugHistory* tail = NULL;
-    while (fgets(line, sizeof(line), fp)) {
-        line[strcspn(line, "\n")] = 0;
-        char* token = strtok(line, ",");
-        if (token) h.drug_id = atoi(token); else h.drug_id = 0;
-        token = strtok(NULL, ",");
-        if (token) h.type = atoi(token); else h.type = 0;
-
-        token = strtok(NULL, ",");
-        if (token) h.quantity = atoi(token); else h.quantity = 0;
-
-        token = strtok(NULL, ",");
-        if (token) strcpy(h.time, token); else h.time[0] = '\0';
-
-        DrugHistory* node = (DrugHistory*)malloc(sizeof(DrugHistory));
-        *node = h;
-        node->next = NULL;
-        if (drugHistoryList->next == NULL) {  // 判断链表有没有数据
-            drugHistoryList->next = node;
-            tail = node;
-        }
-        else {
-            tail->next = node;
-            tail = node;
-        }
-    } 
-	tail->next = NULL;  // 确保链表末尾指针正确设置
-    fclose(fp);
-}
-
-// ---------------------------------------------------------
-// 保存药品出入库历史记录到本地文件
-// ---------------------------------------------------------
-void saveDrugHistory() {
-    FILE* fp = fopen("drug_history.txt", "w");
-    if (!fp) return;
-    DrugHistory* p = drugHistoryList->next;
-    while (p) {
-        fprintf(fp, "%d,%d,%d,%s\n", p->drug_id, p->type, p->quantity, p->time);
-        p = p->next;
-    }
-    fclose(fp);
-}
 
 // ---------------------------------------------------------
 // 展示所有药品库存信息

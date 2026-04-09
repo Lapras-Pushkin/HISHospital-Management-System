@@ -5,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 #include "models.h"
+#include "fileio.h"
 
 // 独立维护的全局业务流水与财务链表指针
 Transaction* transactionList;
@@ -64,61 +65,6 @@ void parttimereport(char* start, char* end) {
         }
         r = r->next;
     }
-}
-// ---------------------------------------------------------
-// 加载本地财务交易记录
-// ---------------------------------------------------------
-void loadTransactions() {
-    FILE* fp = fopen("transactions.txt", "r");
-    if (!fp) return;
-
-    char line[512];
-    Transaction t;
-    Transaction* tail = NULL;
-    while (fgets(line, sizeof(line), fp)) {
-        line[strcspn(line, "\n")] = 0;
-        char* token = strtok(line, ",");
-        if (token) t.id = atoi(token); else t.id = 0;
-        token = strtok(NULL, ",");
-        // type: 1=门诊收入, 2=住院收入, 3=药品收入
-        if (token) t.type = atoi(token); else t.type = 0;
-        token = strtok(NULL, ",");
-        if (token) t.amount = atof(token); else t.amount = 0.0;
-        token = strtok(NULL, ",");
-        if (token) strcpy(t.time, token); else t.time[0] = '\0';
-        token = strtok(NULL, ",");
-        if (token) strcpy(t.description, token); else t.description[0] = '\0';
-
-        Transaction* node = (Transaction*)malloc(sizeof(Transaction));
-        *node = t;
-        node->next = NULL;
-
-        // 尾插法挂载节点
-        // 尾插法挂载节点
-        if (transactionList->next == NULL) {
-            transactionList->next = node;
-            tail = node;
-        }
-        else {
-            tail->next = node;
-            tail = node;
-        }
-    }
-    fclose(fp);
-}
-
-// ---------------------------------------------------------
-// 财务交易记录持久化保存
-// ---------------------------------------------------------
-void saveTransactions() {
-    FILE* fp = fopen("transactions.txt", "w");
-    if (!fp) return;
-    Transaction* p = transactionList->next;
-    while (p) {
-        fprintf(fp, "%d,%d,%.2f,%s,%s\n", p->id, p->type, p->amount, p->time, p->description);
-        p = p->next;
-    }
-    fclose(fp);
 }
 
 // ---------------------------------------------------------

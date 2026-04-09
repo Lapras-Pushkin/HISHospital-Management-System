@@ -12,6 +12,7 @@
 #include "doctor.h"
 #include "schedule.h"
 #include "transaction.h"
+#include "fileio.h"
 
 PatientList patientHead = NULL;
 StaffList staffHead = NULL;

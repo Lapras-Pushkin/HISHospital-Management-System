@@ -1,0 +1,467 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "fileio.h"
+#include "models.h"
+#include "utils.h"
+#include "drug.h"
+#include "doctor.h"
+#include "admin.h"
+#include "schedule.h"
+#include "transaction.h"
+
+
+void loadAllDataFromTxt() {
+    FILE* fp;
+
+    // 加载患者信息
+    fp = fopen("patients.txt", "r");
+    if (fp) {
+        char line[1024];
+        Patient* p_tail = patientHead;
+        while (p_tail->next != NULL) p_tail = p_tail->next;
+
+        while (fgets(line, sizeof(line), fp)) {
+            line[strcspn(line, "\n")] = 0;
+            if (strlen(line) == 0) continue;
+
+            Patient p_temp = { 0 };
+            char* token = strtok(line, ",");
+            if (token) strcpy(p_temp.id, token);
+            token = strtok(NULL, ","); if (token) strcpy(p_temp.password, token);
+            token = strtok(NULL, ","); if (token) strcpy(p_temp.name, token);
+            token = strtok(NULL, ","); if (token) strcpy(p_temp.gender, token);
+            token = strtok(NULL, ","); if (token) p_temp.age = atoi(token);
+            token = strtok(NULL, ","); if (token) strcpy(p_temp.allergy, token);
+            token = strtok(NULL, ","); if (token) p_temp.isEmergency = atoi(token);
+            token = strtok(NULL, ","); if (token) p_temp.balance = atof(token);
+
+            Patient* p_node = (Patient*)malloc(sizeof(Patient));
+            *p_node = p_temp; p_node->next = NULL;
+            p_tail->next = p_node; p_tail = p_node;
+        }
+        fclose(fp);
+    }
+
+    // 统一从 doctor_information.txt 提取 Staff 账号
+    fp = fopen("doctor_information.txt", "r");
+    if (fp) {
+        char line[512];
+        Staff* s_tail = staffHead;
+        while (s_tail->next != NULL) s_tail = s_tail->next;
+
+        while (fgets(line, sizeof(line), fp)) {
+            line[strcspn(line, "\n")] = 0;
+            if (strlen(line) == 0) continue;
+
+            Staff s_temp = { 0 };
+            char* token = strtok(line, ",");
+            if (token) strcpy(s_temp.id, token);
+            token = strtok(NULL, ","); if (token) strcpy(s_temp.password, token);
+            token = strtok(NULL, ","); if (token) strcpy(s_temp.name, token);
+            token = strtok(NULL, ","); if (token) strcpy(s_temp.department, token);
+            token = strtok(NULL, ","); if (token) strcpy(s_temp.level, token);
+
+            Staff* s_node = (Staff*)malloc(sizeof(Staff));
+            *s_node = s_temp; s_node->next = NULL;
+            s_tail->next = s_node; s_tail = s_node;
+        }
+        fclose(fp);
+    }
+
+    // 加载业务流水记录
+    fp = fopen("records.txt", "r");
+    if (fp) {
+        char line[1024];
+        Record* r_tail = recordHead;
+        while (r_tail->next != NULL) r_tail = r_tail->next;
+
+        while (fgets(line, sizeof(line), fp)) {
+            line[strcspn(line, "\n")] = 0;
+            if (strlen(line) == 0) continue;
+
+            Record r_temp = { 0 };
+            char* token = strtok(line, ",");
+            if (token) strcpy(r_temp.recordId, token);
+            token = strtok(NULL, ","); if (token) r_temp.type = atoi(token);
+            token = strtok(NULL, ","); if (token) strcpy(r_temp.patientId, token);
+            token = strtok(NULL, ","); if (token) strcpy(r_temp.staffId, token);
+            token = strtok(NULL, ","); if (token) r_temp.cost = atof(token);
+            token = strtok(NULL, ","); if (token) r_temp.isPaid = atoi(token);
+            token = strtok(NULL, ","); if (token) strcpy(r_temp.description, token);
+            token = strtok(NULL, ","); if (token) strcpy(r_temp.createTime, token);
+
+            Record* r_node = (Record*)malloc(sizeof(Record));
+            *r_node = r_temp; r_node->next = NULL;
+            r_tail->next = r_node; r_tail = r_node;
+        }
+        fclose(fp);
+    }
+
+    // 加载病床信息
+    fp = fopen("beds.txt", "r");
+    if (fp) {
+        char line[512];
+        Bed* b_tail = bedHead;
+        while (b_tail->next != NULL) b_tail = b_tail->next;
+
+        while (fgets(line, sizeof(line), fp)) {
+            line[strcspn(line, "\n")] = 0;
+            if (strlen(line) == 0) continue;
+
+            Bed b_temp = { 0 };
+            char* token = strtok(line, ",");
+            if (token) strcpy(b_temp.bedId, token);
+            token = strtok(NULL, ","); if (token) b_temp.isOccupied = atoi(token);
+            token = strtok(NULL, ","); if (token) strcpy(b_temp.patientId, token);
+            token = strtok(NULL, ","); if (token) strcpy(b_temp.wardType, token);
+            token = strtok(NULL, ","); if (token) strcpy(b_temp.bedType, token);
+            token = strtok(NULL, ","); if (token) b_temp.price = atof(token);
+            token = strtok(NULL, ","); if (token) b_temp.isRoundsDone = atoi(token);
+
+            Bed* b_node = (Bed*)malloc(sizeof(Bed));
+            *b_node = b_temp; b_node->next = NULL;
+            b_tail->next = b_node; b_tail = b_node;
+        }
+        fclose(fp);
+    }
+}
+
+void saveAllDataToTxt() {
+    FILE* fp;
+
+    // 保存患者信息
+    fp = fopen("patients.txt", "w");
+    if (fp) {
+        Patient* p = patientHead->next;
+        while (p) {
+            fprintf(fp, "%s,%s,%s,%s,%d,%s,%d,%.2f\n",
+                p->id, p->password, p->name, p->gender,
+                p->age, p->allergy, p->isEmergency, p->balance);
+            p = p->next;
+        }
+        fclose(fp);
+    }
+
+    // 保存业务流水记录
+    fp = fopen("records.txt", "w");
+    if (fp) {
+        Record* r = recordHead->next;
+        while (r) {
+            fprintf(fp, "%s,%d,%s,%s,%.2f,%d,%s,%s\n",
+                r->recordId, r->type, r->patientId, r->staffId,
+                r->cost, r->isPaid, r->description, r->createTime);
+            r = r->next;
+        }
+        fclose(fp);
+    }
+
+    // 保存病床信息
+    fp = fopen("beds.txt", "w");
+    if (fp) {
+        Bed* b = bedHead->next;
+        while (b) {
+            char safePatientId[30];
+            if (strlen(b->patientId) == 0) strcpy(safePatientId, "无");
+            else strcpy(safePatientId, b->patientId);
+
+            fprintf(fp, "%s,%d,%s,%s,%s,%.2f,%d\n",
+                b->bedId, b->isOccupied, safePatientId,
+                b->wardType, b->bedType, b->price, b->isRoundsDone);
+            b = b->next;
+        }
+        fclose(fp);
+    }
+}
+
+
+// =========================================================================
+// 2. 药品与库存读写 (转移自 drug.c)
+// =========================================================================
+void loadDrugs() {
+    FILE* fp = fopen("drug.txt", "r");
+    if (!fp) return;
+
+    char line[512];
+    Drug d;
+    Drug* tail = NULL;
+
+    while (fgets(line, sizeof(line), fp)) {
+        line[strcspn(line, "\n")] = 0;
+        char* token = strtok(line, ",");
+        if (token) d.id = atoi(token); else d.id = 0;
+        token = strtok(NULL, ","); if (token) strcpy(d.name, token); else d.name[0] = '\0';
+        token = strtok(NULL, ","); if (token) d.stock = atoi(token); else d.stock = 0;
+        token = strtok(NULL, ","); if (token) d.price = atof(token); else d.price = 0.0;
+        token = strtok(NULL, ","); if (token) strcpy(d.batch, token); else d.batch[0] = '\0';
+        token = strtok(NULL, ","); if (token) strcpy(d.expiry, token); else d.expiry[0] = '\0';
+        token = strtok(NULL, ","); if (token) strcpy(d.last_in, token); else d.last_in[0] = '\0';
+        token = strtok(NULL, ","); if (token) strcpy(d.last_out, token); else d.last_out[0] = '\0';
+
+        Drug* node = (Drug*)malloc(sizeof(Drug));
+        *node = d;
+        if (drugList->next == NULL) { drugList->next = node; tail = node; }
+        else { tail->next = node; tail = node; }
+    }
+    tail->next = NULL;
+    fclose(fp);
+}
+
+void saveDrugs() {
+    FILE* fp = fopen("drug.txt", "w");
+    if (!fp) return;
+    Drug* p = drugList->next;
+    while (p) {
+        fprintf(fp, "%d,%s,%d,%.2f,%s,%s,%s,%s\n",
+            p->id, p->name, p->stock, p->price,
+            p->batch, p->expiry, p->last_in, p->last_out);
+        p = p->next;
+    }
+    fclose(fp);
+}
+
+void loadDrugHistory() {
+    FILE* fp = fopen("drug_history.txt", "r");
+    if (!fp) return;
+
+    char line[512];
+    DrugHistory h;
+    DrugHistory* tail = NULL;
+    while (fgets(line, sizeof(line), fp)) {
+        line[strcspn(line, "\n")] = 0;
+        char* token = strtok(line, ",");
+        if (token) h.drug_id = atoi(token); else h.drug_id = 0;
+        token = strtok(NULL, ","); if (token) h.type = atoi(token); else h.type = 0;
+        token = strtok(NULL, ","); if (token) h.quantity = atoi(token); else h.quantity = 0;
+        token = strtok(NULL, ","); if (token) strcpy(h.time, token); else h.time[0] = '\0';
+
+        DrugHistory* node = (DrugHistory*)malloc(sizeof(DrugHistory));
+        *node = h; node->next = NULL;
+        if (drugHistoryList->next == NULL) { drugHistoryList->next = node; tail = node; }
+        else { tail->next = node; tail = node; }
+    }
+    tail->next = NULL;
+    fclose(fp);
+}
+
+void saveDrugHistory() {
+    FILE* fp = fopen("drug_history.txt", "w");
+    if (!fp) return;
+    DrugHistory* p = drugHistoryList->next;
+    while (p) {
+        fprintf(fp, "%d,%d,%d,%s\n", p->drug_id, p->type, p->quantity, p->time);
+        p = p->next;
+    }
+    fclose(fp);
+}
+
+
+// =========================================================================
+// 3. 医生档案读写 (转移自 doctor.c)
+// =========================================================================
+void loadDoctors() {
+    if (doctorList == NULL) {
+        doctorList = (Doctor*)malloc(sizeof(Doctor));
+        doctorList->next = NULL;
+    }
+
+    FILE* fp = fopen("doctor_information.txt", "r");
+    if (!fp) return;
+
+    char line[256];
+    Doctor d;
+    Doctor* tail = doctorList;
+
+    while (tail->next != NULL) tail = tail->next;
+
+    while (fgets(line, sizeof(line), fp)) {
+        line[strcspn(line, "\n")] = 0;
+        if (strlen(line) == 0) continue;
+
+        char* token = strtok(line, ",");
+        if (token) d.id = atoi(token); else d.id = 0;
+
+        token = strtok(NULL, ","); // 略过提取密码
+
+        token = strtok(NULL, ",");
+        if (token) strcpy(d.name, token); else d.name[0] = '\0';
+
+        token = strtok(NULL, ",");
+        if (token) strcpy(d.department, token); else d.department[0] = '\0';
+
+        token = strtok(NULL, ",");
+        if (token) strcpy(d.title, token); else d.title[0] = '\0';
+
+        token = strtok(NULL, ",");
+        if (token) strcpy(d.sex, token); else d.sex[0] = '\0';
+
+        Doctor* node = (Doctor*)malloc(sizeof(Doctor));
+        *node = d;
+        node->next = NULL;
+        tail->next = node;
+        tail = node;
+    }
+    fclose(fp);
+}
+
+void saveDoctors() {
+    FILE* fp = fopen("doctor_information.txt", "w");
+    if (!fp) return;
+
+    if (doctorList == NULL) { fclose(fp); return; }
+
+    Doctor* p = doctorList->next;
+    while (p) {
+        char pwd[50] = "123456";
+        char idStr[20];
+        sprintf(idStr, "%d", p->id);
+
+        Staff* s = staffHead->next;
+        while (s) {
+            if (strcmp(s->id, idStr) == 0) {
+                strcpy(pwd, s->password);
+                break;
+            }
+            s = s->next;
+        }
+        fprintf(fp, "%d,%s,%s,%s,%s,%s\n", p->id, pwd, p->name, p->department, p->title, p->sex);
+        p = p->next;
+    }
+    fclose(fp);
+}
+
+
+// =========================================================================
+// 4. 管理员数据读写 (转移自 admin.c)
+// =========================================================================
+void loadAdminData(void) {
+    FILE* fp = fopen("admin.txt", "r");
+    if (!fp) return;
+    char line[256];
+    while (fgets(line, sizeof(line), fp)) {
+        line[strcspn(line, "\n")] = 0;
+        char* token = strtok(line, ",");
+        if (token) strcpy(admin.username, token); else admin.username[0] = '\0';
+        token = strtok(NULL, ",");
+        if (token) strcpy(admin.password, token); else admin.password[0] = '\0';
+        token = strtok(NULL, ",");
+        if (token) strcpy(admin.phone, token); else admin.phone[0] = '\0';
+        token = strtok(NULL, ",");
+        if (token) strcpy(admin.email, token); else admin.email[0] = '\0';
+    }
+    fclose(fp);
+}
+
+void saveAdminData(void) {
+    FILE* fp = fopen("admin.txt", "w");
+    if (fp) {
+        fprintf(fp, "%s,%s,%s,%s\n", admin.username, admin.password, admin.phone, admin.email);
+        fclose(fp);
+    }
+}
+
+
+// =========================================================================
+// 5. 排班与流水读写 
+// =========================================================================
+
+// 从文件加载排班
+//---------------------------------------------------------
+void loadSchedules() {
+    FILE* fp = fopen("schedules.txt", "r");
+    if (!fp) return;
+
+    char line[256];
+    Schedule s;
+    Schedule* tail = NULL;
+    while (fgets(line, sizeof(line), fp)) {
+        line[strcspn(line, "\n")] = 0;
+        char* token = strtok(line, ",");
+        if (token) s.schedule_id = atoi(token); else s.schedule_id = 0;
+        token = strtok(NULL, ",");
+        if (token) s.doctor_id = atoi(token); else s.doctor_id = 0;
+        token = strtok(NULL, ",");
+        if (token) strcpy(s.date, token); else s.date[0] = '\0';
+        token = strtok(NULL, ",");
+        if (token) strcpy(s.shift, token); else s.shift[0] = '\0';
+
+        Schedule* node = (Schedule*)malloc(sizeof(Schedule));
+        *node = s;
+        node->next = NULL;
+        if (!(scheduleList->next)) { scheduleList->next = node; tail = node; }
+        else { tail->next = node; tail = node; }
+    }
+    fclose(fp);
+}
+
+//----------------------------------------------------------------------
+// 保存排班
+//----------------------------------------------------------------------
+void saveSchedules() {
+    FILE* fp = fopen("schedules.txt", "w");
+    if (!fp) return;
+    Schedule* p = scheduleList->next;
+    while (p) {
+        fprintf(fp, "%d,%d,%s,%s\n", p->schedule_id, p->doctor_id, p->date, p->shift);
+        p = p->next;
+    }
+    fclose(fp);
+}
+
+// ---------------------------------------------------------
+// 加载本地财务交易记录
+// ---------------------------------------------------------
+void loadTransactions() {
+    FILE* fp = fopen("transactions.txt", "r");
+    if (!fp) return;
+
+    char line[512];
+    Transaction t;
+    Transaction* tail = NULL;
+    while (fgets(line, sizeof(line), fp)) {
+        line[strcspn(line, "\n")] = 0;
+        char* token = strtok(line, ",");
+        if (token) t.id = atoi(token); else t.id = 0;
+        token = strtok(NULL, ",");
+        // type: 1=门诊收入, 2=住院收入, 3=药品收入
+        if (token) t.type = atoi(token); else t.type = 0;
+        token = strtok(NULL, ",");
+        if (token) t.amount = atof(token); else t.amount = 0.0;
+        token = strtok(NULL, ",");
+        if (token) strcpy(t.time, token); else t.time[0] = '\0';
+        token = strtok(NULL, ",");
+        if (token) strcpy(t.description, token); else t.description[0] = '\0';
+
+        Transaction* node = (Transaction*)malloc(sizeof(Transaction));
+        *node = t;
+        node->next = NULL;
+
+        // 尾插法挂载节点
+        // 尾插法挂载节点
+        if (transactionList->next == NULL) {
+            transactionList->next = node;
+            tail = node;
+        }
+        else {
+            tail->next = node;
+            tail = node;
+        }
+    }
+    fclose(fp);
+}
+
+// ---------------------------------------------------------
+// 财务交易记录持久化保存
+// ---------------------------------------------------------
+void saveTransactions() {
+    FILE* fp = fopen("transactions.txt", "w");
+    if (!fp) return;
+    Transaction* p = transactionList->next;
+    while (p) {
+        fprintf(fp, "%d,%d,%.2f,%s,%s\n", p->id, p->type, p->amount, p->time, p->description);
+        p = p->next;
+    }
+    fclose(fp);
+}

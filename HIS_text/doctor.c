@@ -4,72 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include "schedule.h"
-#include "utils.h"  // 【新增】引入通用安全工具模块
+#include "utils.h"  
+#include "models.h"  
+#include "fileio.h"
 
 Doctor* doctorList = NULL;
 
-void loadDoctors() {
-    if (doctorList == NULL) {
-        doctorList = (Doctor*)malloc(sizeof(Doctor));
-        doctorList->next = NULL;
-    }
-
-    FILE* fp = fopen("doctors.txt", "r");
-    if (!fp) return;
-
-    char line[256];
-    Doctor d;
-    Doctor* tail = doctorList;
-
-    while (tail->next != NULL) {
-        tail = tail->next;
-    }
-
-    while (fgets(line, sizeof(line), fp)) {
-        line[strcspn(line, "\n")] = 0;
-        if (strlen(line) == 0) continue;
-
-        char* token = strtok(line, ",");
-        if (token) d.id = atoi(token); else d.id = 0;
-
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.name, token); else d.name[0] = '\0';
-
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.department, token); else d.department[0] = '\0';
-
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.title, token); else d.title[0] = '\0';
-
-        token = strtok(NULL, ",");
-        if (token) strcpy(d.sex, token); else d.sex[0] = '\0';
-
-        Doctor* node = (Doctor*)malloc(sizeof(Doctor));
-        *node = d;
-        node->next = NULL;
-
-        tail->next = node;
-        tail = node;
-    }
-    fclose(fp);
-}
-
-void saveDoctors() {
-    FILE* fp = fopen("doctors.txt", "w");
-    if (!fp) return;
-
-    if (doctorList == NULL) {
-        fclose(fp);
-        return;
-    }
-
-    Doctor* p = doctorList->next;
-    while (p) {
-        fprintf(fp, "%d,%s,%s,%s,%s\n", p->id, p->name, p->department, p->title, p->sex);
-        p = p->next;
-    }
-    fclose(fp);
-}
 
 static void displayAllDoctors() {
     if (doctorList == NULL || doctorList->next == NULL) {
@@ -93,17 +33,11 @@ static void addDoctor() {
         printf("输入格式错误，请重新输入: ");
     }
 
-    if (doctorList == NULL) {
-        doctorList = (Doctor*)malloc(sizeof(Doctor));
-        doctorList->next = NULL;
-    }
+    if (doctorList == NULL) { doctorList = (Doctor*)malloc(sizeof(Doctor)); doctorList->next = NULL; }
 
     Doctor* p = doctorList->next;
     while (p) {
-        if (p->id == d.id) {
-            printf("ID已存在！\n");
-            return;
-        }
+        if (p->id == d.id) { printf("ID已存在！\n"); return; }
         p = p->next;
     }
 
@@ -113,20 +47,25 @@ static void addDoctor() {
     printf("请输入性别（男/女）: ");
     while (1) {
         scanf("%9s", d.sex); while (getchar() != '\n');
-        if (strcmp(d.sex, "男") != 0 && strcmp(d.sex, "女") != 0) {
-            printf("无效输入，请输入 '男' 或 '女': ");
-        }
-        else {
-            break;
-        }
+        if (strcmp(d.sex, "男") == 0 || strcmp(d.sex, "女") == 0) break;
+        printf("无效输入，请输入 '男' 或 '女': ");
     }
 
     Doctor* node = (Doctor*)malloc(sizeof(Doctor));
-    *node = d;
-    node->next = doctorList->next;
-    doctorList->next = node;
+    *node = d; node->next = doctorList->next; doctorList->next = node;
+
+    // 【极其关键】：双端挂载！新建医生的同时自动建立Staff登录账号，初始密码 123456
+    Staff* sNode = (Staff*)malloc(sizeof(Staff));
+    sprintf(sNode->id, "%d", d.id);
+    strcpy(sNode->password, "123456");
+    strcpy(sNode->name, d.name);
+    strcpy(sNode->department, d.department);
+    strcpy(sNode->level, d.title);
+    sNode->next = staffHead->next;
+    staffHead->next = sNode;
+
     saveDoctors();
-    printf("医生添加成功。\n");
+    printf("医生添加成功，默认登录密码为 123456。\n");
 }
 
 static void deleteDoctor() {
@@ -139,22 +78,31 @@ static void deleteDoctor() {
 
     if (doctorList == NULL) return;
 
-    Doctor* prev = doctorList;
-    Doctor* curr = doctorList->next;
-
+    Doctor* prev = doctorList; Doctor* curr = doctorList->next;
     while (curr) {
         if (curr->id == id) {
             prev->next = curr->next;
             free(curr);
-            saveDoctors();
+
+            // 【修改点】：同步吊销对应 Staff 的登录权限
+            char idStr[20]; sprintf(idStr, "%d", id);
+            Staff* prevS = staffHead; Staff* currS = staffHead->next;
+            while (currS) {
+                if (strcmp(currS->id, idStr) == 0) {
+                    prevS->next = currS->next;
+                    free(currS);
+                    break;
+                }
+                prevS = currS; currS = currS->next;
+            }
+
             deleteScheduleByDoctorId(id);
-            printf("删除成功。\n");
+            printf("档案及登录权限删除成功。\n");
             saveDoctors();
             saveSchedules();
             return;
         }
-        prev = curr;
-        curr = curr->next;
+        prev = curr; curr = curr->next;
     }
     printf("未找到该医生。\n");
 }
@@ -173,33 +121,37 @@ static void updateDoctor() {
     Doctor* p = doctorList->next;
     while (p) {
         if (p->id == id) {
-            printf("当前医生信息：\n");
-            printf("1. 姓名: %s\n2. 科室: %s\n3. 职称: %s\n4. 性别: %s\n",
-                p->name, p->department, p->title, p->sex);
+            // 【修改点】：提取对应映射的登录实体，以同步改动
+            char idStr[20]; sprintf(idStr, "%d", p->id);
+            Staff* sMatch = NULL;
+            for (Staff* st = staffHead->next; st != NULL; st = st->next) {
+                if (strcmp(st->id, idStr) == 0) { sMatch = st; break; }
+            }
 
-            // 【修改点】：彻底重写修改字段选项，化多选为单选循环
+            printf("当前医生信息：\n");
+            printf("1. 姓名: %s\n2. 科室: %s\n3. 职称: %s\n4. 性别: %s\n", p->name, p->department, p->title, p->sex);
             printf("请选择要修改的单个字段 (1.姓名 2.科室 3.职称 4.性别 | 0.结束保存): ");
+
             int ch;
             while (1) {
                 ch = safeGetInt();
                 if (ch >= 0 && ch <= 4) break;
                 printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择: ");
             }
-
-            if (ch == 0) {
-                printf("修改已取消或结束。\n");
-                return;
-            }
+            if (ch == 0) { printf("修改已取消或结束。\n"); return; }
 
             switch (ch) {
             case 1:
                 printf("请输入新姓名: "); scanf("%49s", p->name); while (getchar() != '\n');
+                if (sMatch) strcpy(sMatch->name, p->name); // 双向同步
                 break;
             case 2:
                 printf("请输入新科室: "); scanf("%29s", p->department); while (getchar() != '\n');
+                if (sMatch) strcpy(sMatch->department, p->department); // 双向同步
                 break;
             case 3:
                 printf("请输入新职称: "); scanf("%19s", p->title); while (getchar() != '\n');
+                if (sMatch) strcpy(sMatch->level, p->title); // 双向同步
                 break;
             case 4:
                 printf("请输入新性别(男/女): ");
@@ -211,13 +163,14 @@ static void updateDoctor() {
                 break;
             }
             saveDoctors();
-            printf("医生信息修改成功。\n");
+            printf("医生信息修改成功并已同步至门禁。\n");
             return;
         }
         p = p->next;
     }
     printf("未找到该医生。\n");
 }
+
 
 static void queryDoctor() {
     int choice;

@@ -9,32 +9,9 @@
 #include "schedule.h"
 #include "transaction.h"
 #include "utils.h"
-
+#include "fileio.h"
 Admin admin;
 
-void loadAdminData(void) {
-    FILE* fp = fopen("admin.txt", "r");
-    if (!fp) return;
-    char line[256];
-    while (fgets(line, sizeof(line), fp)) {
-        line[strcspn(line, "\n")] = 0;
-        char* token = strtok(line, ",");
-        if (token) strcpy(admin.username, token); else admin.username[0] = '\0';
-        token = strtok(NULL, ",");
-        if (token) strcpy(admin.password, token); else admin.password[0] = '\0';
-        token = strtok(NULL, ",");
-        if (token) strcpy(admin.phone, token); else admin.phone[0] = '\0';
-        token = strtok(NULL, ",");
-        if (token) strcpy(admin.email, token); else admin.email[0] = '\0';
-    }
-    fclose(fp);
-}
-
-void saveAdminData(void) {
-    FILE* fp = fopen("admin.txt", "w");
-    fprintf(fp, "%s,%s,%s,%s\n", admin.username, admin.password, admin.phone, admin.email);
-    fclose(fp);
-}
 
 void changePassword(void) {
     char old[20] = { '\0' }, new1[20] = { '\0' }, new2[20] = { '\0' };

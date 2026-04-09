@@ -13,7 +13,4 @@ void safeGetPassword(char* buffer, int size); // 新增的密码安全校验组�
 void getCurrentTimeStr(char* buffer, int size);
 void getCurrentTime(char* buffer, int size);
 
-void loadAllDataFromTxt();
-void saveAllDataToTxt();
-
 #endif

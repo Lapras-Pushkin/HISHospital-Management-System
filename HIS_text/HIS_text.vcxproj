@@ -128,6 +128,7 @@
     <ClInclude Include="decision.h" />
     <ClInclude Include="doctor.h" />
     <ClInclude Include="drug.h" />
+    <ClInclude Include="fileio.h" />
     <ClInclude Include="inpatient_department.h" />
     <ClInclude Include="models.h" />
     <ClInclude Include="outpatient_department.h" />

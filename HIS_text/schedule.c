@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "time_t.h"
+#include "fileio.h"
 
 Schedule* scheduleList;
 //---------------------------------------------------------
@@ -34,48 +35,6 @@ void deleteScheduleByDoctorId(int doctorId) {
     saveSchedules();
 }
 //---------------------------------------------------------
-// 从文件加载排班
-//---------------------------------------------------------
-void loadSchedules() {
-    FILE* fp = fopen("schedules.txt", "r");
-    if (!fp) return;
-
-    char line[256];
-    Schedule s;
-    Schedule* tail = NULL;
-    while (fgets(line, sizeof(line), fp)) {
-        line[strcspn(line, "\n")] = 0;
-        char* token = strtok(line, ",");
-        if (token) s.schedule_id = atoi(token); else s.schedule_id = 0;
-        token = strtok(NULL, ",");
-        if (token) s.doctor_id = atoi(token); else s.doctor_id = 0;
-        token = strtok(NULL, ",");
-        if (token) strcpy(s.date, token); else s.date[0] = '\0';
-        token = strtok(NULL, ",");
-        if (token) strcpy(s.shift, token); else s.shift[0] = '\0';
-
-        Schedule* node = (Schedule*)malloc(sizeof(Schedule));
-        *node = s;
-        node->next = NULL;
-        if (!(scheduleList->next)) { scheduleList->next = node;tail = node; }
-        else { tail->next = node; tail = node; }
-    }
-    fclose(fp);
-}
-
-//----------------------------------------------------------------------
-// 保存排班
-//----------------------------------------------------------------------
-void saveSchedules() {
-    FILE* fp = fopen("schedules.txt", "w");
-    if (!fp) return;
-    Schedule* p = scheduleList->next;
-    while (p) {
-        fprintf(fp, "%d,%d,%s,%s\n", p->schedule_id, p->doctor_id, p->date, p->shift);
-        p = p->next;
-    }
-    fclose(fp);
-}
 
 //--------------------------------------------------------------
 // 检查排班是否冲突
