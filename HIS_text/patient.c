@@ -11,7 +11,6 @@
 #include "transaction.h"
 #include "drug.h"
 
-// 声明外部函数，防止编译器找不到
 extern void generateRecordID(char* buffer);
 extern Bed* bedHead;
 

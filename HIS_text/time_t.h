@@ -1,6 +1,6 @@
 #pragma once
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef TIME_T_H
+#define TIME_T_H
 
 #include <time.h>
 

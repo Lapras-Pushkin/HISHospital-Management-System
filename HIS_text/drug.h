@@ -18,7 +18,7 @@ typedef struct Drug {
 
 typedef struct DrugHistory {
     int drug_id;
-    int type;           // 1=���, 2=����
+    int type;           
     int quantity;
     char time[15];
     struct DrugHistory* next;

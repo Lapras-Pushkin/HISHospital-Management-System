@@ -59,6 +59,8 @@ typedef struct Bed {
     struct Bed* next;
 } Bed, * BedList;
 
+
+
 extern PatientList patientHead;
 extern StaffList staffHead;
 extern MedicineList medicineHead;

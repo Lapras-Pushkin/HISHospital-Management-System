@@ -118,7 +118,7 @@ void safeGetGender(char* buffer, int size) {
     }
 }
 
-/* 新增：严格的密码规则约束器 */
+// 严格的密码规则约束器 
 void safeGetPassword(char* buffer, int size) {
     int i, valid;
     while (1) {
@@ -130,7 +130,8 @@ void safeGetPassword(char* buffer, int size) {
         for (i = 0; buffer[i] != '\0'; i++) {
             if (!((buffer[i] >= '0' && buffer[i] <= '9') ||
                 (buffer[i] >= 'a' && buffer[i] <= 'z') ||
-                (buffer[i] >= 'A' && buffer[i] <= 'Z'))) {
+                (buffer[i] >= 'A' && buffer[i] <= 'Z')))
+            {
                 valid = 0;
                 break;
             }

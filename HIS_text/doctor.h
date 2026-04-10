@@ -13,8 +13,7 @@ typedef struct Doctor {
 
 extern Doctor* doctorList;
 
-void loadDoctors(void);
-void saveDoctors(void);
+
 void doctorMenu(void);
 
 #endif

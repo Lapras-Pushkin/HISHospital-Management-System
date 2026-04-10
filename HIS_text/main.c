@@ -105,7 +105,7 @@ int main() {
                 safeGetString(acc, 50);
                 if (strcmp(acc, "0") == 0) break;
 
-                printf("  [?] 请输入动态口令密码: "); safeGetString(pwd, 50);
+                printf("  [?] 请输入密码: "); safeGetString(pwd, 50);
 
                 if (strcmp(acc, admin.username) == 0 && strcmp(pwd, admin.password) == 0) {
                     adminMenu();

@@ -2,25 +2,25 @@
 #ifndef FILEIO_H
 #define FILEIO_H
 
-// 1. 全局基础数据读写 (原位于 utils.c)
+// 1. 全局基础数据读写 
 void loadAllDataFromTxt();
 void saveAllDataToTxt();
 
-// 2. 药品与库存读写 (原位于 drug.c)
+// 2. 药品与库存读写 
 void loadDrugs();
 void saveDrugs();
 void loadDrugHistory();
 void saveDrugHistory();
 
-// 3. 医生档案读写 (原位于 doctor.c)
+// 3. 医生档案读写 
 void loadDoctors();
 void saveDoctors();
 
-// 4. 管理员数据读写 (原位于 admin.c)
+// 4. 管理员数据读写 
 void loadAdminData();
 void saveAdminData();
 
-// 5. 排班与流水读写 (原位于 schedule.c 和 transaction.c)
+// 5. 排班与流水读写 
 void loadSchedules();
 void saveSchedules();
 void loadTransactions();
