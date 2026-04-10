@@ -7,17 +7,18 @@
 #include <time.h>
 #include "transaction.h"
 #include "time_t.h"
+#include "utils.h" // 【新增】引入安全输入工具库
 
 // ---------------------------------------------------------
 // 业务一：基于历史数据人员异常与风险预测模型
 // ---------------------------------------------------------
 static void personnelPrediction() {
     printf("\n========== 人员异常预测预警 ==========\n");
-	char start[30],currentTime[30];
-	getCurrentDate(currentTime, 30);
-	getPastDateAccurate(currentTime, start, 14);
-	parttimereport(start, currentTime);
-    if (!personnelReportList||!(personnelReportList->next)) {
+    char start[30], currentTime[30];
+    getCurrentDate(currentTime, 30);
+    getPastDateAccurate(currentTime, start, 14);
+    parttimereport(start, currentTime);
+    if (!personnelReportList || !(personnelReportList->next)) {
         printf(" 在指定时间范围内无接诊数据，无法进行分析。\n");
         return;
     }
@@ -25,19 +26,20 @@ static void personnelPrediction() {
     int totalDoctors = 0;
     int highVolumeDoctors = 0;
     int lowVolumeDoctors = 0;
-    
+
     PersonnelReport* current = personnelReportList->next;
     while (current != NULL) {
         totalDoctors++;
-        
+
         if (current->count > 100) {
             highVolumeDoctors++;
-        } else if (current->count < 20) {
+        }
+        else if (current->count < 20) {
             lowVolumeDoctors++;
         }
         current = current->next;
     }
-    
+
     printf("统计完成：共 %d 名医生\n", totalDoctors);
     printf("  高接诊量医生(>100): %d 名\n", highVolumeDoctors);
     printf("  低接诊量医生(<20): %d 名\n", lowVolumeDoctors);
@@ -45,63 +47,68 @@ static void personnelPrediction() {
     printf("\n--- 医生接诊情况分析 ---\n");
     printf("%-10s %-20s %-15s %-8s %s\n", "医生ID", "姓名", "科室", "接诊量", "风险状态");
     printf("------------------------------------------------------------\n");
-    
+
     current = personnelReportList->next;
     while (current != NULL) {
         char riskStatus[20] = "正常";
         float riskProbability = 0.0f;
-        
+
         if (current->count > 120) {
             strcpy(riskStatus, "过劳风险");
             riskProbability = 0.8f;
-        } else if (current->count > 100) {
+        }
+        else if (current->count > 100) {
             strcpy(riskStatus, "负荷较高");
             riskProbability = 0.6f;
-        } else if (current->count < 10) {
+        }
+        else if (current->count < 10) {
             strcpy(riskStatus, "工作不足");
             riskProbability = 0.4f;
-        } else if (current->count < 20) {
+        }
+        else if (current->count < 20) {
             strcpy(riskStatus, "关注对象");
             riskProbability = 0.3f;
         }
-        
-        printf("%-10s %-20s %-15s %-8d %s(%.1f%%)\n", 
-               current->doctor_id, current->doctor_name, current->department,
-               current->count, riskStatus, riskProbability * 100);
-        
+
+        printf("%-10s %-20s %-15s %-8d %s(%.1f%%)\n",
+            current->doctor_id, current->doctor_name, current->department,
+            current->count, riskStatus, riskProbability * 100);
+
         current = current->next;
     }
 
     printf("\n--- 预警名单 ---\n");
     int warningCount = 0;
     current = personnelReportList->next;
-    
+
     while (current != NULL) {
         if (current->count > 100 || current->count < 20) {
             if (warningCount == 0) {
                 printf("%-10s %-20s %-15s %-8s %s\n", "医生ID", "姓名", "科室", "接诊量", "预警原因");
                 printf("----------------------------------------------------------------\n");
             }
-            
+
             char reason[50];
             if (current->count > 100) {
                 snprintf(reason, sizeof(reason), "接诊量过高(%d)，可能过劳", current->count);
-            } else {
+            }
+            else {
                 snprintf(reason, sizeof(reason), "接诊量过低(%d)，工作状态异常", current->count);
             }
-            
-            printf("%-10s %-20s %-15s %-8d %s\n", 
-                   current->doctor_id, current->doctor_name, current->department,
-                   current->count, reason);
-            
+
+            printf("%-10s %-20s %-15s %-8d %s\n",
+                current->doctor_id, current->doctor_name, current->department,
+                current->count, reason);
+
             warningCount++;
         }
         current = current->next;
     }
-    
+
     if (warningCount == 0) {
         printf("  暂无需要预警的医生\n");
-    } else {
+    }
+    else {
         printf("  共 %d 名医生需要关注\n", warningCount);
     }
 
@@ -115,16 +122,17 @@ static void personnelPrediction() {
     if (highVolumeDoctors == 0 && lowVolumeDoctors == 0) {
         printf(" 所有医生接诊量在正常范围，继续保持\n");
     }
-    
+
     printf("\n分析完成！\n");
-	PersonnelReport* p = personnelReportList->next;
+    PersonnelReport* p = personnelReportList->next;
     while (p) {
-		PersonnelReport* tmp = p;
+        PersonnelReport* tmp = p;
         p = p->next;
         free(tmp);
     }
     personnelReportList->next = NULL;
 }
+
 // ---------------------------------------------------------
 // 业务二：分拣仓库效率监控与异常处理策略
 // ---------------------------------------------------------
@@ -260,6 +268,7 @@ static void drugProportionAdvice() {
 void decisionMenu() {
     int choice;
     do {
+        system("cls"); // 清屏，保证界面整洁
         printf("\n========== 智能辅助决策控制台 ==========\n");
         printf("1. 人事效能与异常预测\n");
         printf("2. 分拣与药房负载分析\n");
@@ -267,21 +276,35 @@ void decisionMenu() {
         printf("4. 一键执行全景分析\n");
         printf("0. 返回高管主菜单\n");
         printf("请选择功能: ");
-        if (scanf("%d", &choice) != 1) {
-            choice = -1;
-			while (getchar() != '\n');
+
+        // 【修改点】：全局替换为安全输入死循环拦截
+        while (1) {
+            choice = safeGetInt();
+            if (choice >= 0 && choice <= 4) break;
+            printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择功能: ");
         }
+
         switch (choice) {
-        case 1: personnelPrediction(); break;
-        case 2: warehouseStrategy(); break;
-        case 3: drugProportionAdvice(); break;
+        case 1:
+            personnelPrediction();
+            system("pause"); // 添加暂停，防止内容一闪而过
+            break;
+        case 2:
+            warehouseStrategy();
+            system("pause");
+            break;
+        case 3:
+            drugProportionAdvice();
+            system("pause");
+            break;
         case 4:
             personnelPrediction();
             warehouseStrategy();
             drugProportionAdvice();
+            system("pause");
             break;
-        case 0: break;
-        default: printf("无效选项。\n");
+        case 0:
+            break;
         }
     } while (choice != 0);
 }

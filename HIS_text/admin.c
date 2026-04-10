@@ -10,66 +10,56 @@
 #include "transaction.h"
 #include "utils.h"
 #include "fileio.h"
+
 Admin admin;
 
-
 void changePassword(void) {
-    char old[20] = { '\0' }, new1[20] = { '\0' }, new2[20] = { '\0' };
-    printf("请输入旧密码: "); safeGetPassword(old, 20);
-    if (old[19] != '\0' || strcmp(old, admin.password) != 0) { printf("旧密码错误！\n"); return; }
-    printf("请输入新密码: "); safeGetPassword(new1, 20);
-    if (new1[19] != '\0' || strlen(new1) == 0) { printf("新密码格式错误！\n"); return; }
-    printf("请确认新密码: "); safeGetPassword(new2, 20);
-    if (new2[19] != '\0' || strcmp(new1, new2) != 0) { printf("两次输入不一致！\n"); return; }
+    char old[50] = { '\0' }, new1[50] = { '\0' }, new2[50] = { '\0' };
+    printf("请输入旧密码 (输入0取消): "); safeGetString(old, 50);
+    if (strcmp(old, "0") == 0) return;
+    if (strcmp(old, admin.password) != 0) { printf("  [!] 旧密码错误！\n"); system("pause"); return; }
+
+    printf("请输入新密码 (仅限字母或数字): "); safeGetPassword(new1, 50);
+    if (strcmp(new1, "0") == 0) return;
+
+    printf("请确认新密码: "); safeGetString(new2, 50);
+    if (strcmp(new1, new2) != 0) { printf("  [!] 两次输入不一致！\n"); system("pause"); return; }
+
     strcpy(admin.password, new1);
-    printf("密码修改成功！\n");
+    printf("  [√] 密码修改成功！\n");
     saveAdminData();
+    system("pause");
 }
 
 void editPersonalInfo(void) {
-    printf("当前信息：\n用户名: %s\n手机号: %s\n邮箱: %s\n", admin.username, admin.phone, admin.email);
-    printf("请输入新用户名（直接回车保留原值）: ");
-    char newUsername[20];
-    while (1) {
-        scanf("%20s", newUsername);
-        if (newUsername[19] != '\0')
-            printf("输入格式错误！请重新输入: ");
-        else
-            break;
-    }
-    if (newUsername[0] != '\n') { newUsername[strcspn(newUsername, "\n")] = 0; strcpy(admin.username, newUsername); }
+    printf("\n当前信息：\n用户名: %s\n手机号: %s\n邮箱: %s\n", admin.username, admin.phone, admin.email);
 
-    printf("请输入新手机号（直接回车保留原值）: ");
-    char newPhone[12];
-    while (1) {
-        scanf("%11s", newPhone);
-        if (newPhone[11] != '\0')
-            printf("输入格式错误！请重新输入: ");
-        else
-            break;
-    }
-    if (newPhone[0] != '\n') { newPhone[strcspn(newPhone, "\n")] = 0; strcpy(admin.phone, newPhone); }
+    char buffer[100];
 
-    printf("请输入新邮箱（直接回车保留原值）: ");
-    char newEmail[30];
-    while (1) {
-        scanf("%30s", newEmail);
-        if (newEmail[29] != '\0')
-            printf("输入格式错误！请重新输入: ");
-        else
-            break;
-    }
-    if (newEmail[0] != '\n') { newEmail[strcspn(newEmail, "\n")] = 0; strcpy(admin.email, newEmail); }
-    printf("个人信息更新成功！\n");
+    printf("\n请输入新用户名 (直接输入0保留原值): ");
+    safeGetString(buffer, 50);
+    if (strcmp(buffer, "0") != 0 && strlen(buffer) > 0) strcpy(admin.username, buffer);
+
+    printf("请输入新手机号 (直接输入0保留原值): ");
+    safeGetString(buffer, 20);
+    if (strcmp(buffer, "0") != 0 && strlen(buffer) > 0) strcpy(admin.phone, buffer);
+
+    printf("请输入新邮箱 (直接输入0保留原值): ");
+    safeGetString(buffer, 50);
+    if (strcmp(buffer, "0") != 0 && strlen(buffer) > 0) strcpy(admin.email, buffer);
+
+    printf("  [√] 个人信息更新成功！\n");
+    saveAdminData();
+    system("pause");
 }
 
 void personalMenu() {
     int choice;
     do {
+        system("cls");
         printf("\n========== 个人设置 ==========\n");
         printf("1. 修改密码\n2. 个人信息编辑\n0. 返回主菜单\n请选择: ");
 
-        // 【修改点】：使用安全输入及循环卡死
         while (1) {
             choice = safeGetInt();
             if (choice == 1 || choice == 2 || choice == 0) break;
@@ -100,7 +90,6 @@ void adminMenu(void) {
         printf("-----------------------------------------\n");
         printf("请下达管理指令: ");
 
-        // 【修改点】：高管大厅死循环卡死非法输入
         while (1) {
             choice = safeGetInt();
             if (choice >= 0 && choice <= 5) break;

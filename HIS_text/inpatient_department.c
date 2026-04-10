@@ -109,7 +109,6 @@ const char* getRoomDepartment(const char* bedId) {
     initHospitalDepts(); // 确保科室映射表已加载
 
     int roomNum;
-    // sscanf 可以安全提取如 "26-1A" 中的 26
     if (sscanf(bedId, "%d-", &roomNum) != 1) return "未知科室";
 
     // 算法：每5个房间属于一个科室。房号26 -> (26-1)/5 = 5 -> 指向数组第6个科室

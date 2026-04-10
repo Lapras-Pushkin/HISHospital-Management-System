@@ -10,10 +10,9 @@
 
 Doctor* doctorList = NULL;
 
-
 static void displayAllDoctors() {
     if (doctorList == NULL || doctorList->next == NULL) {
-        printf("医生列表为空。\n");
+        printf("  [!] 医生列表为空。\n");
         return;
     }
     printf("\n--- 医生列表 ---\n");
@@ -27,34 +26,27 @@ static void displayAllDoctors() {
 
 static void addDoctor() {
     Doctor d;
-    printf("请输入医生ID: ");
-    while (scanf("%d", &d.id) != 1) {
-        while (getchar() != '\n');
-        printf("输入格式错误，请重新输入: ");
-    }
-
-    if (doctorList == NULL) { doctorList = (Doctor*)malloc(sizeof(Doctor)); doctorList->next = NULL; }
-
-    Doctor* p = doctorList->next;
-    while (p) {
-        if (p->id == d.id) { printf("ID已存在！\n"); return; }
-        p = p->next;
-    }
-
-    printf("请输入姓名: "); scanf("%49s", d.name); while (getchar() != '\n');
-    printf("请输入科室: "); scanf("%29s", d.department); while (getchar() != '\n');
-    printf("请输入职称: "); scanf("%19s", d.title); while (getchar() != '\n');
-    printf("请输入性别（男/女）: ");
+    printf("请输入医生ID (必须为纯数字): ");
     while (1) {
-        scanf("%9s", d.sex); while (getchar() != '\n');
-        if (strcmp(d.sex, "男") == 0 || strcmp(d.sex, "女") == 0) break;
-        printf("无效输入，请输入 '男' 或 '女': ");
+        d.id = safeGetPositiveInt();
+        if (d.id == 0) return; // 0代表取消
+
+        int exists = 0;
+        for (Doctor* p = doctorList->next; p != NULL; p = p->next) {
+            if (p->id == d.id) { exists = 1; break; }
+        }
+        if (!exists) break;
+        printf("  [!] 该ID已存在！请重新输入新的医生ID: ");
     }
+
+    printf("请输入姓名: "); safeGetString(d.name, 50);
+    printf("请输入科室: "); safeGetString(d.department, 30);
+    printf("请输入职称: "); safeGetString(d.title, 20);
+    printf("请输入性别（男/女）: "); safeGetGender(d.sex, 10);
 
     Doctor* node = (Doctor*)malloc(sizeof(Doctor));
     *node = d; node->next = doctorList->next; doctorList->next = node;
 
-    // 【极其关键】：双端挂载！新建医生的同时自动建立Staff登录账号，初始密码 123456
     Staff* sNode = (Staff*)malloc(sizeof(Staff));
     sprintf(sNode->id, "%d", d.id);
     strcpy(sNode->password, "123456");
@@ -65,18 +57,14 @@ static void addDoctor() {
     staffHead->next = sNode;
 
     saveDoctors();
-    printf("医生添加成功，默认登录密码为 123456。\n");
+    printf("  [√] 医生添加成功，默认登录密码为 123456。\n");
+    system("pause");
 }
 
 static void deleteDoctor() {
-    int id;
-    printf("请输入要删除的医生ID: ");
-    while (scanf("%d", &id) != 1) {
-        while (getchar() != '\n');
-        printf("输入格式错误，请重新输入: ");
-    }
-
-    if (doctorList == NULL) return;
+    printf("请输入要删除的医生ID (输入0取消): ");
+    int id = safeGetPositiveInt();
+    if (id == 0 || doctorList == NULL) return;
 
     Doctor* prev = doctorList; Doctor* curr = doctorList->next;
     while (curr) {
@@ -84,7 +72,6 @@ static void deleteDoctor() {
             prev->next = curr->next;
             free(curr);
 
-            // 【修改点】：同步吊销对应 Staff 的登录权限
             char idStr[20]; sprintf(idStr, "%d", id);
             Staff* prevS = staffHead; Staff* currS = staffHead->next;
             while (currS) {
@@ -97,31 +84,26 @@ static void deleteDoctor() {
             }
 
             deleteScheduleByDoctorId(id);
-            printf("档案及登录权限删除成功。\n");
+            printf("  [√] 档案及登录权限删除成功。\n");
             saveDoctors();
             saveSchedules();
+            system("pause");
             return;
         }
         prev = curr; curr = curr->next;
     }
-    printf("未找到该医生。\n");
+    printf("  [!] 未找到该医生。\n");
+    system("pause");
 }
 
 static void updateDoctor() {
-    int id;
-    printf("请输入要修改的医生ID: ");
-    while (1) {
-        if (scanf("%d", &id) == 1) break;
-        while (getchar() != '\n');
-        printf("输入格式错误，请重新输入: ");
-    }
-
-    if (doctorList == NULL) return;
+    printf("请输入要修改的医生ID (输入0取消): ");
+    int id = safeGetPositiveInt();
+    if (id == 0 || doctorList == NULL) return;
 
     Doctor* p = doctorList->next;
     while (p) {
         if (p->id == id) {
-            // 【修改点】：提取对应映射的登录实体，以同步改动
             char idStr[20]; sprintf(idStr, "%d", p->id);
             Staff* sMatch = NULL;
             for (Staff* st = staffHead->next; st != NULL; st = st->next) {
@@ -138,45 +120,40 @@ static void updateDoctor() {
                 if (ch >= 0 && ch <= 4) break;
                 printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n请重新选择: ");
             }
-            if (ch == 0) { printf("修改已取消或结束。\n"); return; }
+            if (ch == 0) return;
 
             switch (ch) {
             case 1:
-                printf("请输入新姓名: "); scanf("%49s", p->name); while (getchar() != '\n');
-                if (sMatch) strcpy(sMatch->name, p->name); // 双向同步
+                printf("请输入新姓名: "); safeGetString(p->name, 50);
+                if (sMatch) strcpy(sMatch->name, p->name);
                 break;
             case 2:
-                printf("请输入新科室: "); scanf("%29s", p->department); while (getchar() != '\n');
-                if (sMatch) strcpy(sMatch->department, p->department); // 双向同步
+                printf("请输入新科室: "); safeGetString(p->department, 30);
+                if (sMatch) strcpy(sMatch->department, p->department);
                 break;
             case 3:
-                printf("请输入新职称: "); scanf("%19s", p->title); while (getchar() != '\n');
-                if (sMatch) strcpy(sMatch->level, p->title); // 双向同步
+                printf("请输入新职称: "); safeGetString(p->title, 20);
+                if (sMatch) strcpy(sMatch->level, p->title);
                 break;
             case 4:
-                printf("请输入新性别(男/女): ");
-                while (1) {
-                    scanf("%9s", p->sex); while (getchar() != '\n');
-                    if (strcmp(p->sex, "男") == 0 || strcmp(p->sex, "女") == 0) break;
-                    printf("无效输入，请输入 '男' 或 '女': ");
-                }
+                printf("请输入新性别(男/女): "); safeGetGender(p->sex, 10);
                 break;
             }
             saveDoctors();
-            printf("医生信息修改成功并已同步至门禁。\n");
+            printf("  [√] 医生信息修改成功并已同步至门禁。\n");
+            system("pause");
             return;
         }
         p = p->next;
     }
-    printf("未找到该医生。\n");
+    printf("  [!] 未找到该医生。\n");
+    system("pause");
 }
-
 
 static void queryDoctor() {
     int choice;
-    printf("查询方式：1-按ID  2-按姓名模糊 3-按职称 0-返回\n请选择: ");
+    printf("\n查询方式：1-按ID  2-按姓名模糊 3-按职称 0-返回\n请选择: ");
 
-    // 【修改点】
     while (1) {
         choice = safeGetInt();
         if (choice >= 0 && choice <= 3) break;
@@ -187,62 +164,59 @@ static void queryDoctor() {
     if (doctorList == NULL) return;
 
     if (choice == 1) {
-        int id;
-        printf("请输入ID: ");
-        while (scanf("%d", &id) != 1) {
-            while (getchar() != '\n');
-            printf("输入格式错误，请重新输入: ");
-        }
+        printf("请输入医生ID: ");
+        int id = safeGetPositiveInt();
         Doctor* p = doctorList->next;
         while (p) {
             if (p->id == id) {
                 printf("ID: %d, 姓名: %s, 科室: %s, 职称: %s, 性别: %s\n",
                     p->id, p->name, p->department, p->title, p->sex);
+                system("pause");
                 return;
             }
             p = p->next;
         }
-        printf("未找到。\n");
+        printf("  [!] 未找到匹配记录。\n");
     }
     else if (choice == 2) {
-        char name[20];
+        char name[50];
         printf("请输入姓名关键字: ");
-        scanf("%49s", name); while (getchar() != '\n');
+        safeGetString(name, 50);
         int found = 0;
         Doctor* p = doctorList->next;
         while (p) {
             if (strstr(p->name, name)) {
                 if (!found) printf("\n--- 查询结果 ---\n");
-                printf("ID: %d, 姓名: %s, 科室: %s, 职称: %s\n",
-                    p->id, p->name, p->department, p->title);
+                printf("ID: %d, 姓名: %s, 科室: %s, 职称: %s\n", p->id, p->name, p->department, p->title);
                 found = 1;
             }
             p = p->next;
         }
-        if (!found) printf("未找到。\n");
+        if (!found) printf("  [!] 未找到匹配记录。\n");
     }
     else if (choice == 3) {
-        char title[20];
+        char title[50];
         printf("请输入职称关键字: ");
-        scanf("%19s", title); while (getchar() != '\n');
+        safeGetString(title, 50);
         int found = 0;
         Doctor* p = doctorList->next;
         while (p) {
             if (strstr(p->title, title)) {
                 if (!found) printf("\n--- 查询结果 ---\n");
-                printf("ID: %d, 姓名: %s, 科室: %s, 职称: %s\n",
-                    p->id, p->name, p->department, p->title);
+                printf("ID: %d, 姓名: %s, 科室: %s, 职称: %s\n", p->id, p->name, p->department, p->title);
                 found = 1;
             }
             p = p->next;
         }
-        if (!found) printf("未找到。\n");
+        if (!found) printf("  [!] 未找到匹配记录。\n");
     }
+    system("pause");
 }
 
 void doctorMenu() {
     int choice;
     do {
+        system("cls");
         printf("\n===== 医生信息管理 =====\n");
         printf("1. 查看全部医生\n");
         printf("2. 添加医生\n");
@@ -252,7 +226,6 @@ void doctorMenu() {
         printf("0. 返回主菜单\n");
         printf("请选择: ");
 
-        // 【修改点】
         while (1) {
             choice = safeGetInt();
             if (choice >= 0 && choice <= 5) break;
@@ -260,7 +233,7 @@ void doctorMenu() {
         }
 
         switch (choice) {
-        case 1: displayAllDoctors(); break;
+        case 1: displayAllDoctors(); system("pause"); break;
         case 2: addDoctor(); break;
         case 3: deleteDoctor(); break;
         case 4: updateDoctor(); break;
