@@ -320,7 +320,7 @@ void loadSchedules() {
         char* token = strtok(line, ",");
         if (token) s.schedule_id = atoi(token); else s.schedule_id = 0;
         token = strtok(NULL, ",");
-        if (token) strncpy(s.doctor_id, token, sizeof(s.doctor_id) - 1); else s.doctor_id[0] = '\0';
+        if (token) s.doctor_id = atoi(token); else s.doctor_id = 0;
         token = strtok(NULL, ",");
         if (token) strcpy(s.date, token); else s.date[0] = '\0';
         token = strtok(NULL, ",");
