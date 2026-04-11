@@ -42,9 +42,11 @@ void callPatient(const char* docId) {
     printf("\n========== 智能排班溯源与叫号 ==========\n");
 
     // 1. 抓取该医生所有有效出诊日期（利用数组进行去重过滤）
-    Schedule* s = scheduleList; int sCount = 0; char availableDates[20][15];
+    /* 【BUG修复1】原代码 scheduleList 未跳过哨兵节点，改为 scheduleList->next */
+    /* 【BUG修复2】原代码 docId + 1 跳过了"D"前缀，但Schedule.doctor_id已是"D1001"格式，应直接用 docId */
+    Schedule* s = scheduleList->next; int sCount = 0; char availableDates[20][15];
     while (s) {
-        if (strcmp(s->doctor_id, docId + 1) == 0) {
+        if (strcmp(s->doctor_id, docId) == 0) {
             int duplicate = 0;
             for (int i = 0; i < sCount; i++) { if (strcmp(availableDates[i], s->date) == 0) duplicate = 1; }
             if (!duplicate) { strcpy(availableDates[sCount], s->date); sCount++; }
@@ -62,8 +64,8 @@ void callPatient(const char* docId) {
     int dChoice = safeGetInt();
     if (dChoice == -1) return;
 
-    // 边界条件拦截：防止非法的超额索引号导致数组越界引发内存异常
-    if (dChoice < 0 || dChoice > sCount) {
+    /* 【BUG修复3】原代码 dChoice < 0 允许输入0导致 availableDates[-1] 越界，改为 dChoice < 1 */
+    if (dChoice < 1 || dChoice > sCount) {
         printf("  [!] 输入越界：无此索引号，操作已终止。\n");
         return;
     }
@@ -199,7 +201,8 @@ void prescribeMedicine(const char* docId) {
 
         // 跨模块数据强一致性校验：通过直接读取核心物资单链表(drugList)，
         // 实现了对全院大药房真实物理库存的实时镜像检索与后续扣除，消除数据冗余孤岛。
-        Drug* d = drugList; Drug* matched[100] = { NULL }; int mCount = 0;
+        /* 【BUG修复4】原代码 drugList 未跳过哨兵节点，改为 drugList->next */
+        Drug* d = drugList->next; Drug* matched[100] = { NULL }; int mCount = 0;
 
         printf("\n  ========== 药品储备库 ==========\n");
         printf("  %-4s | %-8s | %-16s | %-8s | %-8s\n", "映射", "系统内码", "国家标准药名", "单价", "物理库存");

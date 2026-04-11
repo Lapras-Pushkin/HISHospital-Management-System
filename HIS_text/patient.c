@@ -34,12 +34,12 @@ Patient* findPatientById(const char* pid) {
 
 void registerPatient() {
     printf("\n========== 账户注册与建档 ==========\n");
-    printf("请选择就诊类型 (1.普通门诊 2.急诊绿色通道 -1.取消返回): "); /* 【修改】0->-1 */
+    printf("请选择就诊类型 (1.普通门诊 2.急诊绿色通道 -1.取消返回): ");
 
     int type;
     while (1) {
         type = safeGetInt();
-        if (type == -1) return; /* 【修改】 */
+        if (type == -1) return;
         if (type == 1 || type == 2) break;
         printf("  [!] 输入有误：只能输入 1 或 2，请重新选择: ");
     }
@@ -50,35 +50,34 @@ void registerPatient() {
     newPatient->isEmergency = (type == 2) ? 1 : 0;
 
     while (1) {
-        printf("请输入真实姓名 (输入-1取消): "); /* 【修改】 */
+        printf("请输入真实姓名 (输入-1取消): ");
         safeGetString(newPatient->name, 100);
-        if (strcmp(newPatient->name, "-1") == 0) { free(newPatient); return; } /* 【修改】 */
+        if (strcmp(newPatient->name, "-1") == 0) { free(newPatient); return; }
         if (strlen(newPatient->name) > 0) break;
-        printf("  [!] 输入不能为空，请重新输入！\n"); /* 【新增】空输入提示 */
+        printf("  [!] 输入不能为空，请重新输入！\n");
     }
 
-    /* 【修改】密码规则已在safeGetPassword中强制>=6位 */
-    printf("请设置登录密码 (至少6位，仅限数字或字母组合, 输入-1取消): "); /* 【修改】 */
+    printf("请设置登录密码 (至少6位，仅限数字或字母组合, 输入-1取消): ");
     safeGetPassword(newPatient->password, 50);
-    if (strcmp(newPatient->password, "-1") == 0) { free(newPatient); return; } /* 【修改】 */
+    if (strcmp(newPatient->password, "-1") == 0) { free(newPatient); return; }
 
-    printf("请输入生理性别 (男/女, 输入-1取消): "); /* 【修改】 */
+    printf("请输入生理性别 (男/女, 输入-1取消): ");
     safeGetGender(newPatient->gender, 10);
-    if (strcmp(newPatient->gender, "-1") == 0) { free(newPatient); return; } /* 【修改】 */
+    if (strcmp(newPatient->gender, "-1") == 0) { free(newPatient); return; }
 
     if (!newPatient->isEmergency) {
-        printf("请输入周岁年龄 (1-200, 输入-1取消): "); /* 【修改】 */
+        printf("请输入周岁年龄 (1-200, 输入-1取消): ");
         while (1) {
             newPatient->age = safeGetInt();
-            if (newPatient->age == -1) { free(newPatient); return; } /* 【修改】 */
+            if (newPatient->age == -1) { free(newPatient); return; }
             if (newPatient->age >= 1 && newPatient->age <= 200) break;
             printf("  [!] 输入异常：年龄必须在 1~200 之间，请重新输入 (输入-1取消): ");
         }
 
         while (1) {
-            printf("请输入过敏史(无则填无, 输入-1取消): "); /* 【修改】 */
+            printf("请输入过敏史(无则填无, 输入-1取消): ");
             safeGetString(newPatient->allergy, 100);
-            if (strcmp(newPatient->allergy, "-1") == 0) { free(newPatient); return; } /* 【修改】 */
+            if (strcmp(newPatient->allergy, "-1") == 0) { free(newPatient); return; }
             if (strlen(newPatient->allergy) > 0) break;
             printf("  [!] 输入不能为空！\n");
         }
@@ -117,12 +116,12 @@ void bookAppointment(const char* currentPatientId) {
         printf("\n========== 自助预约门诊挂号 ==========\n");
         printf("  [1] 按【科室名称】搜寻未来一周排班\n");
         printf("  [2] 按【医生姓名/工号】搜寻排班\n");
-        printf(" [-1] 放弃挂号，返回上级菜单\n"); /* 【修改】0->-1 */
+        printf(" [-1] 放弃挂号，返回上级菜单\n");
         printf("--------------------------------------\n");
         printf("  请选择搜寻引擎: ");
 
         int choice = safeGetInt();
-        if (choice == -1) return; /* 【修改】 */
+        if (choice == -1) return;
 
         char keyword[50];
 
@@ -143,9 +142,9 @@ void bookAppointment(const char* currentPatientId) {
             for (int i = 0; i < dCount; i++) printf("[%s] ", depts[i]);
 
             while (1) {
-                printf("\n  请输入您要挂号的目标科室名称 (输入-1返回): "); /* 【修改】 */
+                printf("\n  请输入您要挂号的目标科室名称 (输入-1返回): ");
                 safeGetString(keyword, 50);
-                if (strcmp(keyword, "-1") == 0) break; /* 【修改】 */
+                if (strcmp(keyword, "-1") == 0) break;
                 if (strlen(keyword) == 0) { printf("  [!] 输入不能为空！"); continue; }
 
                 int isValidDept = 0;
@@ -155,12 +154,12 @@ void bookAppointment(const char* currentPatientId) {
                 if (isValidDept) break;
                 else printf("  [!] 输入的科室不存在，请从上方列表中选择并重新输入！");
             }
-            if (strcmp(keyword, "-1") == 0) continue; /* 【修改】 */
+            if (strcmp(keyword, "-1") == 0) continue;
         }
         else if (choice == 2) {
-            printf("  请输入医生精确姓名或纯数字工号 (如:李四 / 1001, 输入-1返回): "); /* 【修改】 */
+            printf("  请输入医生精确姓名或纯数字工号 (如:李四 / 1001, 输入-1返回): ");
             safeGetString(keyword, 50);
-            if (strcmp(keyword, "-1") == 0) continue; /* 【修改】 */
+            if (strcmp(keyword, "-1") == 0) continue;
             if (strlen(keyword) == 0) { printf("  [!] 输入不能为空！\n"); system("pause"); continue; }
         }
         else {
@@ -175,7 +174,7 @@ void bookAppointment(const char* currentPatientId) {
 
         printf("\n========== 未来一周可预约排班总表 (%s 至 %s) ==========\n", today, nextWeek);
         printf("  %-8s | %-12s | %-8s | %-18s | %-10s | %-10s\n",
-            "排班ID", "出诊日期", "班次", "出诊医师(工号)", "科室", "职称"); /* 【修改】对齐 */
+            "排班ID", "出诊日期", "班次", "出诊医师(工号)", "科室", "职称");
         printf("  ---------------------------------------------------------------------------\n");
 
         int found = 0;
@@ -207,7 +206,7 @@ void bookAppointment(const char* currentPatientId) {
                 snprintf(docDisp, sizeof(docDisp), "%s(%s)", matchedDoc->name, matchedDoc->id);
                 printf("  [%-6d] | %-12s | %-8s | %-18s | %-10s | %-10s\n",
                     s->schedule_id, s->date, s->shift, docDisp,
-                    matchedDoc->department, matchedDoc->level); /* 【修改】对齐 */
+                    matchedDoc->department, matchedDoc->level);
                 /* 【新增】记录本次搜索结果中的排班ID */
                 if (matchedCount < 200) {
                     matchedSchIds[matchedCount++] = s->schedule_id;
@@ -219,9 +218,9 @@ void bookAppointment(const char* currentPatientId) {
         if (found == 0) { printf("\n  [!] 数据流反馈：未搜索到满足当前条件的排班资源。\n"); system("pause"); continue; }
 
         printf("  ---------------------------------------------------------------------------\n");
-        printf("  请输入要确认选择的【排班ID】 (输入-1重新搜索): "); /* 【修改】 */
+        printf("  请输入要确认选择的【排班ID】 (输入-1重新搜索): ");
         int targetSchId = safeGetInt();
-        if (targetSchId == -1) continue; /* 【修改】 */
+        if (targetSchId == -1) continue;
 
         /* 【新增 - 需求二核心】校验排班ID是否在当前搜索结果内 */
         int idInResult = 0;
@@ -246,8 +245,9 @@ void bookAppointment(const char* currentPatientId) {
         }
         if (!targetDoc) { printf("  [!] 底层数据异常：医生档案关联引用失败。\n"); system("pause"); continue; }
 
+        /* 【BUG修复5】原代码 "D%s" 拼接已含"D"前缀的id，变成"DD1001"，改为直接使用 "%s" */
         char staffIdStr[22];
-        snprintf(staffIdStr, sizeof(staffIdStr), "D%s", targetDoc->id);
+        snprintf(staffIdStr, sizeof(staffIdStr), "%s", targetDoc->id);
 
         int patientDailyActive = 0, patientDeptDailyActive = 0, sameDocSameDay = 0, docDailyCount = 0, hospitalDailyCount = 0;
 
@@ -258,8 +258,9 @@ void bookAppointment(const char* currentPatientId) {
                 if (strcmp(rec->patientId, currentPatientId) == 0 && rec->isPaid != 2) {
                     patientDailyActive++;
                     for (Staff* recDoc = staffHead->next; recDoc != NULL; recDoc = recDoc->next) {
+                        /* 【BUG修复6】同上，去掉多余的"D"前缀 */
                         char tempDId[22];
-                        snprintf(tempDId, sizeof(tempDId), "D%s", recDoc->id);
+                        snprintf(tempDId, sizeof(tempDId), "%s", recDoc->id);
                         if (strcmp(tempDId, rec->staffId) == 0) {
                             if (strcmp(recDoc->department, targetDoc->department) == 0) patientDeptDailyActive++;
                             if (strcmp(tempDId, staffIdStr) == 0) sameDocSameDay = 1;
@@ -362,14 +363,14 @@ void financeCenter(const char* currentPatientId) {
         printf("\n========== 个人财务结算中心 ==========\n");
         printf("  [当前账户可用余额]:  %.2f 元\n", p->balance);
         printf("--------------------------------------\n");
-        printf("  [1] 在线网银充值 (预存备用金)\n  [2] 待处理账单清算 (聚合结算)\n [-1] 返回主终端\n"); /* 【修改】 */
+        printf("  [1] 在线网银充值 (预存备用金)\n  [2] 待处理账单清算 (聚合结算)\n [-1] 返回主终端\n");
         printf("  业务指令: ");
 
         int choice = safeGetInt();
-        if (choice == -1) return; /* 【修改】 */
+        if (choice == -1) return;
 
         if (choice == 1) {
-            printf("\n  请输入需充值的金额 (输入-1取消): "); /* 【修改】 */
+            printf("\n  请输入需充值的金额 (输入-1取消): ");
             double money = safeGetDouble();
             if (money == -1.0) continue;
             if (money > 0) {
@@ -413,10 +414,10 @@ void financeCenter(const char* currentPatientId) {
 
                 printf("----------------------------------------------------------------------\n");
                 printf("  [资金比对] 待清算总额: %.2f 元 | 余额: %.2f 元\n\n", totalUnpaidCost, p->balance);
-                printf("  1. 一键聚合支付\n  2. 指定流水号单项核销\n -1. 返回上一级\n  请选择: "); /* 【修改】 */
+                printf("  1. 一键聚合支付\n  2. 指定流水号单项核销\n -1. 返回上一级\n  请选择: ");
 
                 int payChoice = safeGetInt();
-                if (payChoice == -1) break; /* 【修改】 */
+                if (payChoice == -1) break;
 
                 if (payChoice == 1) {
                     if (p->balance < totalUnpaidCost) {
@@ -445,10 +446,10 @@ void financeCenter(const char* currentPatientId) {
                     }
                 }
                 else if (payChoice == 2) {
-                    printf("\n  请输入需独立清算的单据流水号 (输入-1取消): "); /* 【修改】 */
+                    printf("\n  请输入需独立清算的单据流水号 (输入-1取消): ");
                     char target[30];
                     safeGetString(target, 30);
-                    if (strcmp(target, "-1") == 0) continue; /* 【修改】 */
+                    if (strcmp(target, "-1") == 0) continue;
                     if (strlen(target) == 0) { printf("  [!] 输入不能为空！\n"); system("pause"); continue; }
 
                     Record* tRec = NULL;
@@ -490,12 +491,12 @@ void medicalRecords(const char* currentPatientId) {
         printf("  [4] 调取辅助生化与影像开单记录\n");
         printf("  [5] 调取住院与押金账单记录\n");
         printf("  [6] 汇总终身财务进出流水总账\n");
-        printf(" [-1] 退出检索平台\n"); /* 【修改】 */
+        printf(" [-1] 退出检索平台\n");
         printf("----------------------------------------\n");
         printf("  请指派数据抽取卷宗号: ");
 
         int c = safeGetInt();
-        if (c == -1) return; /* 【修改】 */
+        if (c == -1) return;
 
         if (c >= 1 && c <= 4) {
             int printed = 0;
@@ -528,10 +529,10 @@ void medicalRecords(const char* currentPatientId) {
                 }
                 if (count == 0) { printf("  未索引到住院流水。\n"); system("pause"); break; }
                 printf("  ------------------------------------------------------------------\n");
-                printf("  请提供【系统统筹编号】查看明细 (输入-1返回): "); /* 【修改】 */
+                printf("  请提供【系统统筹编号】查看明细 (输入-1返回): ");
                 char target[30];
                 safeGetString(target, 30);
-                if (strcmp(target, "-1") == 0) break; /* 【修改】 */
+                if (strcmp(target, "-1") == 0) break;
                 if (strlen(target) == 0) { printf("  [!] 输入不能为空！\n"); system("pause"); continue; }
 
                 Record* tRec = NULL;
@@ -623,22 +624,22 @@ void changePatientPassword(const char* currentId) {
     char oldPwd[50] = { 0 }, newPwd[50] = { 0 }, confirmPwd[50] = { 0 };
 
     printf("\n========== 核心安全凭证更替操作 ==========\n");
-    printf("请输入原始密码进行校验 (输入-1取消): "); /* 【修改】 */
+    printf("请输入原始密码进行校验 (输入-1取消): ");
     safeGetString(oldPwd, 50);
-    if (strcmp(oldPwd, "-1") == 0) return; /* 【修改】 */
+    if (strcmp(oldPwd, "-1") == 0) return;
 
     if (strcmp(p->password, oldPwd) != 0) {
         printf("  [安全阻断] 特征匹配失败！\n");
         system("pause"); return;
     }
 
-    printf("请输入新密码 (至少6位，仅限数字或字母, 输入-1取消): "); /* 【修改】密码>=6位 */
+    printf("请输入新密码 (至少6位，仅限数字或字母, 输入-1取消): ");
     safeGetPassword(newPwd, 50);
-    if (strcmp(newPwd, "-1") == 0) return; /* 【修改】 */
+    if (strcmp(newPwd, "-1") == 0) return;
 
-    printf("重复输入以完成校验 (输入-1取消): "); /* 【修改】 */
+    printf("重复输入以完成校验 (输入-1取消): ");
     safeGetString(confirmPwd, 50);
-    if (strcmp(confirmPwd, "-1") == 0) return; /* 【修改】 */
+    if (strcmp(confirmPwd, "-1") == 0) return;
 
     if (strcmp(newPwd, confirmPwd) != 0) {
         printf("  [异常] 二次校验不一致，操作取消。\n");
@@ -662,7 +663,7 @@ void userTerminal(const char* currentId) {
         printf("  [2] 财务与费用中心 (账户缴费)\n");
         printf("  [3] 个人医疗档案库 (查询报告)\n");
         printf("  [4] 个人账号安全设置 (密码修改)\n");
-        printf(" [-1] 结束当前操作，返回系统主菜单\n"); /* 【修改】 */
+        printf(" [-1] 结束当前操作，返回系统主菜单\n");
         printf("------------------------------------------------------\n");
         printf("  请选择: ");
 
@@ -672,7 +673,7 @@ void userTerminal(const char* currentId) {
         case 2: financeCenter(currentId); break;
         case 3: medicalRecords(currentId); break;
         case 4: changePatientPassword(currentId); break;
-        case -1: return; /* 【修改】 */
+        case -1: return;
         default:
             printf("  [!] 无效选项！\n");
             system("pause"); break;

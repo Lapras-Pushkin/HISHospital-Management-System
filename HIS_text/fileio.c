@@ -112,7 +112,14 @@ void loadAllDataFromTxt() {
             char* token = strtok(line, ",");
             if (token) strcpy(b_temp.bedId, token);
             token = strtok(NULL, ","); if (token) b_temp.isOccupied = atoi(token);
-            token = strtok(NULL, ","); if (token) strcpy(b_temp.patientId, token);
+            token = strtok(NULL, ",");
+            if (token) {
+                /* 【BUG修复7】保存时空patientId写为"无"，加载时需还原为空串 */
+                if (strcmp(token, "无") == 0)
+                    strcpy(b_temp.patientId, "");
+                else
+                    strcpy(b_temp.patientId, token);
+            }
             token = strtok(NULL, ","); if (token) strcpy(b_temp.wardType, token);
             token = strtok(NULL, ","); if (token) strcpy(b_temp.bedType, token);
             token = strtok(NULL, ","); if (token) b_temp.price = atof(token);
@@ -191,8 +198,6 @@ void loadDrugs() {
 
     char line[512];
     Drug d;
-    /* 【核心修复】初始化tail为链表末尾，而非NULL。
-       原代码tail=NULL，若drugList->next非空则else分支解引用NULL导致崩溃 */
     Drug* tail = drugList;
     while (tail->next != NULL) tail = tail->next;
 
@@ -237,7 +242,6 @@ void loadDrugHistory() {
 
     char line[512];
     DrugHistory h;
-    /* 【修复】同loadDrugs，初始化tail为链表末尾 */
     DrugHistory* tail = drugHistoryList;
     while (tail->next != NULL) tail = tail->next;
 
@@ -311,7 +315,6 @@ void loadSchedules() {
 
     char line[256];
     Schedule s;
-    /* 【修复】同loadDrugs，初始化tail为链表末尾 */
     Schedule* tail = scheduleList;
     while (tail->next != NULL) tail = tail->next;
 
@@ -352,7 +355,6 @@ void loadTransactions() {
 
     char line[512];
     Transaction t;
-    /* 【修复】同loadDrugs，初始化tail为链表末尾 */
     Transaction* tail = transactionList;
     while (tail->next != NULL) tail = tail->next;
 
