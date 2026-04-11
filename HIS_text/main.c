@@ -65,7 +65,6 @@ int main() {
     Patient* me_patient;
 
     initLists();
-
     loadAllDataFromTxt();
     loadDrugs();
     loadDrugHistory();
@@ -85,23 +84,22 @@ int main() {
         printf("       [1] 管理端登录入口   (高管业务与财务报表)\n");
         printf("       [2] 医护端登录入口   (临床接诊与住院中心)\n");
         printf("       [3] 患者端自助终端   (在线挂号与费用清算)\n");
-        printf("       [0] 安全断开连接     (保存所有数据并退出)\n");
+        printf("      [-1] 安全断开连接     (保存所有数据并退出)\n"); /* 【修改】0->-1 */
         printf("\n  ========================================================\n");
         printf("  请选择要访问的业务端口: ");
 
-        // 【修改点】：严格过滤主端口输入
         while (1) {
             port = safeGetInt();
-            if (port == 1 || port == 2 || port == 3 || port == 0) break;
+            if (port == 1 || port == 2 || port == 3 || port == -1) break; /* 【修改】0->-1 */
             printf("  [!] 无效的登录端口，请正确输入菜单中提供的数字编号！\n  请重新选择: ");
         }
 
         if (port == 1) {
             while (1) {
-                printf("\n  >>> 高管身份验证 (输入0返回大厅) <<<\n");
+                printf("\n  >>> 高管身份验证 (输入-1返回大厅) <<<\n"); /* 【修改】0->-1 */
                 printf("  [?] 请输入超级管理账号: ");
                 safeGetString(acc, 50);
-                if (strcmp(acc, "0") == 0) break;
+                if (strcmp(acc, "-1") == 0) break; /* 【修改】 */
 
                 printf("  [?] 请输入密码: "); safeGetString(pwd, 50);
 
@@ -116,10 +114,10 @@ int main() {
         }
         else if (port == 2) {
             while (1) {
-                printf("\n  >>> 医护端安全门禁 (输入0返回大厅) <<<\n");
+                printf("\n  >>> 医护端安全门禁 (输入-1返回大厅) <<<\n"); /* 【修改】 */
                 printf("  [?] 请刷取职工工号: ");
                 safeGetString(acc, 50);
-                if (strcmp(acc, "0") == 0) break;
+                if (strcmp(acc, "-1") == 0) break; /* 【修改】 */
 
                 printf("  [?] 请输入登录密码: "); safeGetString(pwd, 50);
 
@@ -146,21 +144,22 @@ int main() {
             printf("\n  --- 患者自助服务总机 ---\n");
             printf("  1. 验证身份证件 (账号登录)\n");
             printf("  2. 首次就诊建档 (注册档案)\n");
-            printf("  0. 返回控制大厅\n");
+            printf(" -1. 返回控制大厅\n"); /* 【修改】 */
             printf("  请选择: ");
 
-            // 【修改点】：严格过滤患者端子菜单输入
             while (1) {
                 pChoice = safeGetInt();
-                if (pChoice == 1 || pChoice == 2 || pChoice == 0) break;
+                if (pChoice == 1 || pChoice == 2 || pChoice == -1) break; /* 【修改】 */
                 printf("  [!] 输入格式不合法，请正确输入菜单中提供的数字编号！\n  请重新选择: ");
             }
 
             if (pChoice == 1) {
                 while (1) {
-                    printf("\n  [?] 请输入患者ID (如P20251000, 输入0返回): ");
+                    printf("\n  [?] 请输入患者ID (如P20251000, 输入-1返回): "); /* 【修改】 */
                     safeGetString(acc, 50);
-                    if (strcmp(acc, "0") == 0) break;
+                    if (strcmp(acc, "-1") == 0) break; /* 【修改】 */
+                    /* 【新增】空输入校验 */
+                    if (strlen(acc) == 0) { printf("  [!] 请输入用户ID，不允许为空！\n"); continue; }
 
                     printf("  [?] 请输入服务密码: "); safeGetString(pwd, 50);
 
@@ -188,7 +187,7 @@ int main() {
                 system("pause");
             }
         }
-        else if (port == 0) {
+        else if (port == -1) { /* 【修改】0->-1 */
             printf("\n  [系统广播] 正在将三大终端内存数据强一致性同步至物理磁盘...\n");
 
             saveAllDataToTxt();
