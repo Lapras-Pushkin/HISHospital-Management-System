@@ -8,7 +8,7 @@ typedef struct Drug {
     int id;
     char name[50];
     int stock;
-    float price;
+    double price;    // 修复：float精度不足，改为double
     char batch[30];
     char expiry[30];
     char last_in[30];
@@ -28,7 +28,6 @@ extern Drug* drugList;
 extern DrugHistory* drugHistoryList;
 
 void drugMenu(void);
-static int isDrugIdExists(int id);
 void initDrugList();
 
 #endif

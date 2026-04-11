@@ -47,7 +47,7 @@ void callPatient(const char* docId) {
     // 1. 抓取该医生所有有效出诊日期（利用数组进行去重过滤）
     Schedule* s = scheduleList; int sCount = 0; char availableDates[20][15];
     while (s) {
-        if (s->doctor_id == atoi(docId + 1)) {
+        if (strcmp(s->doctor_id, docId + 1) == 0) {
             int duplicate = 0;
             for (int i = 0; i < sCount; i++) { if (strcmp(availableDates[i], s->date) == 0) duplicate = 1; }
             if (!duplicate) { strcpy(availableDates[sCount], s->date); sCount++; }
@@ -152,7 +152,9 @@ void diagnoseAndTest(const char* docId) {
     while (1) { printf("  请给出权威确切诊断学结论: "); safeGetString(diag, 100); if (strlen(diag) > 0) break; }
 
     // 初始化 Type 2 (临床看诊病历记录)
-    Record* r2 = (Record*)malloc(sizeof(Record)); generateRecordID(r2->recordId);
+    Record* r2 = (Record*)malloc(sizeof(Record));
+    if (!r2) { printf("  [!] 内存分配失败。\n"); return; }
+    generateRecordID(r2->recordId);
     r2->type = 2; strcpy(r2->patientId, pId); strcpy(r2->staffId, docId);
     r2->cost = 20.0; r2->isPaid = 0; sprintf(r2->description, "症状:%s_临床诊断:%s", symptoms, diag);
     getCurrentTimeStr(r2->createTime, 30); r2->next = recordHead->next; recordHead->next = r2;
@@ -169,7 +171,9 @@ void diagnoseAndTest(const char* docId) {
         double tCost = safeGetDouble();
 
         // 生成 Type 4 检查单流转记录
-        Record* r4 = (Record*)malloc(sizeof(Record)); generateRecordID(r4->recordId);
+        Record* r4 = (Record*)malloc(sizeof(Record));
+        if (!r4) { printf("  [!] 内存分配失败。\n"); return; }
+        generateRecordID(r4->recordId);
         r4->type = 4; strcpy(r4->patientId, pId); strcpy(r4->staffId, docId);
         r4->cost = tCost; r4->isPaid = 0; sprintf(r4->description, "检查名称:%s", testName);
         getCurrentTimeStr(r4->createTime, 30); r4->next = recordHead->next; recordHead->next = r4;
@@ -200,10 +204,12 @@ void prescribeMedicine(const char* docId) {
 
         // 提供模糊检索引擎支持
         while (d) {
-            if (strstr(d->name, key) || strstr(d->id, key)) {
+            char idStr[20];
+            sprintf(idStr, "%d", d->id);
+            if (strstr(d->name, key) || strstr(idStr, key)) {
                 if (mCount < 100) {
                     matched[mCount] = d;
-                    printf("  [%-2d] | %-8s | %-16s | %-8.2f | %-8d\n", mCount + 1, d->id, d->name, d->price, d->stock);
+                    printf("  [%-2d] | %-8d | %-16s | %-8.2f | %-8d\n", mCount + 1, d->id, d->name, d->price, d->stock);
                     mCount++;
                 }
             }
@@ -219,9 +225,9 @@ void prescribeMedicine(const char* docId) {
 
         // 复合型交互支持：同步兼容序号映射选择与精确编码定位
         Drug* selectedMed = NULL; int isNum = 1;
-        for (int i = 0; i < strlen(mChoiceStr); i++) { if (mChoiceStr[i] < '0' || mChoiceStr[i] > '9') { isNum = 0; break; } }
+        for (int i = 0; i < (int)strlen(mChoiceStr); i++) { if (mChoiceStr[i] < '0' || mChoiceStr[i] > '9') { isNum = 0; break; } }
         if (isNum) { int idx = atoi(mChoiceStr); if (idx > 0 && idx <= mCount) selectedMed = matched[idx - 1]; }
-        if (!selectedMed) { for (int i = 0; i < mCount; i++) { if (strcmp(matched[i]->id, mChoiceStr) == 0) { selectedMed = matched[i]; break; } } }
+        if (!selectedMed) { for (int i = 0; i < mCount; i++) { char idStr[20]; sprintf(idStr, "%d", matched[i]->id); if (strcmp(idStr, mChoiceStr) == 0) { selectedMed = matched[i]; break; } } }
         if (!selectedMed) { printf("  [!] 定位脱靶，输入无法解析。\n"); continue; }
 
         int qty;
@@ -242,7 +248,9 @@ void prescribeMedicine(const char* docId) {
         double totalCost = qty * selectedMed->price;
 
         // 构建并入库 Type 3 (药单系统凭证)
-        Record* r3 = (Record*)malloc(sizeof(Record)); extern void generateRecordID(char* buffer);
+        Record* r3 = (Record*)malloc(sizeof(Record));
+        if (!r3) { printf("  [!] 内存分配失败。\n"); return; }
+        extern void generateRecordID(char* buffer);
         generateRecordID(r3->recordId);
         r3->type = 3; strcpy(r3->patientId, pId); strcpy(r3->staffId, docId);
         r3->cost = totalCost; r3->isPaid = 0;
@@ -275,7 +283,9 @@ void issueAdmissionNotice(const char* docId) {
     while (1) { safeGetString(note, 100); if (strlen(note) > 0) break; }
 
     // 生成 Type 6 数据实体，此记录将作为住院部调度引擎授权收治分配床位的核心依据
-    Record* r6 = (Record*)malloc(sizeof(Record)); generateRecordID(r6->recordId);
+    Record* r6 = (Record*)malloc(sizeof(Record));
+    if (!r6) { printf("  [!] 内存分配失败。\n"); return; }
+    generateRecordID(r6->recordId);
     r6->type = 6; strcpy(r6->patientId, pId); strcpy(r6->staffId, docId);
     r6->cost = 0.0; r6->isPaid = 0;
 

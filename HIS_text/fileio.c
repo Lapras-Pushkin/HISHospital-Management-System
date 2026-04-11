@@ -213,11 +213,14 @@ void loadDrugs() {
         token = strtok(NULL, ","); if (token) strcpy(d.last_out, token); else d.last_out[0] = '\0';
 
         Drug* node = (Drug*)malloc(sizeof(Drug));
+        if (!node) break; /* 修复：malloc失败时安全退出 */
         *node = d;
+        node->next = NULL; /* 修复：提前置NULL，防止悬空指针 */
         if (drugList->next == NULL) { drugList->next = node; tail = node; }
         else { tail->next = node; tail = node; }
     }
-    tail->next = NULL;
+    /* 修复Bug：drug.txt为空时tail为NULL，原代码直接写tail->next导致崩溃 */
+    if (tail) tail->next = NULL;
     fclose(fp);
 }
 
@@ -250,11 +253,13 @@ void loadDrugHistory() {
         token = strtok(NULL, ","); if (token) strcpy(h.time, token); else h.time[0] = '\0';
 
         DrugHistory* node = (DrugHistory*)malloc(sizeof(DrugHistory));
+        if (!node) break; /* 修复：malloc失败时安全退出 */
         *node = h; node->next = NULL;
         if (drugHistoryList->next == NULL) { drugHistoryList->next = node; tail = node; }
         else { tail->next = node; tail = node; }
     }
-    tail->next = NULL;
+    /* 修复Bug：文件为空时tail为NULL，原代码直接写tail->next导致崩溃 */
+    if (tail) tail->next = NULL;
     fclose(fp);
 }
 
@@ -316,7 +321,7 @@ void loadSchedules() {
         char* token = strtok(line, ",");
         if (token) s.schedule_id = atoi(token); else s.schedule_id = 0;
         token = strtok(NULL, ",");
-        if (token) s.doctor_id = atoi(token); else s.doctor_id = 0;
+        if (token) strncpy(s.doctor_id, token, sizeof(s.doctor_id) - 1); else s.doctor_id[0] = '\0';
         token = strtok(NULL, ",");
         if (token) strcpy(s.date, token); else s.date[0] = '\0';
         token = strtok(NULL, ",");
@@ -339,7 +344,7 @@ void saveSchedules() {
     if (!fp) return;
     Schedule* p = scheduleList->next;
     while (p) {
-        fprintf(fp, "%d,%d,%s,%s\n", p->schedule_id, p->doctor_id, p->date, p->shift);
+        fprintf(fp, "%d,%s,%s,%s\n", p->schedule_id, p->doctor_id, p->date, p->shift);
         p = p->next;
     }
     fclose(fp);
@@ -383,6 +388,7 @@ void loadTransactions() {
             tail->next = node;
             tail = node;
         }
+
     }
     fclose(fp);
 }
